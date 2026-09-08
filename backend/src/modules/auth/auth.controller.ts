@@ -110,10 +110,10 @@ export const authController = {
 
   async uploadAvatar(req: AuthRequest, res: Response) {
     try {
-      if (!req.file?.filename) {
+      if (!req.file?.blobUrl) {
         return ApiResponse.badRequest(res, 'No image provided');
       }
-      const user = await authService.uploadAvatar(req.user!.id, req.file.filename);
+      const user = await authService.uploadAvatar(req.user!.id, req.file.blobUrl);
       return ApiResponse.success(res, user, 'Avatar uploaded');
     } catch (err) {
       return ApiResponse.error(res, 'Avatar upload failed', 500);

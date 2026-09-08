@@ -2,36 +2,62 @@ import type { Server } from 'http';
 import jwt from 'jsonwebtoken';
 import { WebSocketServer, WebSocket } from 'ws';
 import { env } from '../config/env';
+import { publishChannel, REDIS_CHANNELS, subscribeChannel } from '../lib/redis';
+import { getSharedWebSocketServer, registerSocketPath } from './shared-wss';
 
 type AuthedWebSocket = WebSocket & { userId?: string };
 
 const userSockets = new Map<string, Set<AuthedWebSocket>>();
 
 let wss: WebSocketServer | null = null;
+let subscribed = false;
 
 const WS_PATH = '/api/messages/ws';
+
+interface NewMessagePayload {
+  type: 'message:new';
+  conversationId: string;
+  message: unknown;
+  memberUserIds: string[];
+}
+
+function fanoutNewMessage(payload: NewMessagePayload) {
+  const data = JSON.stringify({
+    type: payload.type,
+    conversationId: payload.conversationId,
+    message: payload.message,
+  });
+  for (const userId of payload.memberUserIds) {
+    const sockets = userSockets.get(userId);
+    if (!sockets) continue;
+    for (const socket of sockets) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(data);
+      }
+    }
+  }
+}
+
+function ensureRedisFanout() {
+  if (subscribed) return;
+  subscribed = true;
+  subscribeChannel(REDIS_CHANNELS.messages, (raw) => {
+    const payload = raw as NewMessagePayload;
+    if (!payload || payload.type !== 'message:new') return;
+    fanoutNewMessage(payload);
+  });
+}
 
 export function initWebSocketServer(server: Server) {
   if (wss) {
     return wss;
   }
 
-  // noServer + a manual, non-destructive path check lets this coexist with other
-  // WebSocketServers on the same http.Server (e.g. the games WS). ws's built-in
-  // {server, path} mode aborts ANY mismatched upgrade with an HTTP 400 the instant
-  // its own path doesn't match, which breaks sibling WebSocketServers registered
-  // on the same server — each one's internal listener runs for every upgrade event.
-  wss = new WebSocketServer({ noServer: true });
+  ensureRedisFanout();
 
-  server.on('upgrade', (req, socket, head) => {
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
-    if (url.pathname !== WS_PATH) return;
-    wss!.handleUpgrade(req, socket, head, (ws) => {
-      wss!.emit('connection', ws, req);
-    });
-  });
-
-  wss.on('connection', (socket: AuthedWebSocket, req) => {
+  wss = getSharedWebSocketServer(server);
+  registerSocketPath(WS_PATH, (rawSocket, req) => {
+    const socket = rawSocket as AuthedWebSocket;
     try {
       const url = new URL(req.url || '', `http://${req.headers.host}`);
       const token = url.searchParams.get('token') || undefined;
@@ -41,8 +67,8 @@ export function initWebSocketServer(server: Server) {
         return;
       }
 
-      const decoded = jwt.verify(token, env.jwtSecret) as any;
-      const userId = decoded.userId as string | undefined;
+      const decoded = jwt.verify(token, env.jwtSecret) as { userId?: string };
+      const userId = decoded.userId;
 
       if (!userId) {
         socket.close(4002, 'Invalid token');
@@ -74,31 +100,12 @@ export function initWebSocketServer(server: Server) {
   return wss;
 }
 
-interface NewMessagePayload {
-  type: 'message:new';
-  conversationId: string;
-  message: any;
-}
-
-export function broadcastNewMessage(conversationId: string, message: any, memberUserIds: string[]) {
-  if (!wss) return;
-
+export async function broadcastNewMessage(conversationId: string, message: unknown, memberUserIds: string[]) {
   const payload: NewMessagePayload = {
     type: 'message:new',
     conversationId,
     message,
+    memberUserIds,
   };
-
-  const data = JSON.stringify(payload);
-
-  for (const userId of memberUserIds) {
-    const sockets = userSockets.get(userId);
-    if (!sockets) continue;
-    for (const socket of sockets) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(data);
-      }
-    }
-  }
+  await publishChannel(REDIS_CHANNELS.messages, payload);
 }
-

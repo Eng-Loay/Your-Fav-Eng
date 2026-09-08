@@ -46,8 +46,18 @@ export function getProductFileUrl(fileUrl: string | undefined | null): string {
 
 function getBackendOrigin(): string {
   const envUrl = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_API_URL : undefined
-  if (envUrl) return envUrl.replace(/\/api\/?$/, "")
-  if (typeof window !== "undefined") return `http://${window.location.hostname}:5001`
+  if (envUrl) {
+    if (envUrl.startsWith("/")) {
+      if (typeof window !== "undefined") return window.location.origin
+      return ""
+    }
+    return envUrl.replace(/\/api\/?$/, "")
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname
+    if (host !== "localhost" && host !== "127.0.0.1") return window.location.origin
+    return `http://${host}:5001`
+  }
   return "http://localhost:5001"
 }
 

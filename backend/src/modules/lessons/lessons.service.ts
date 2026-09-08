@@ -41,8 +41,8 @@ export const lessonsService = {
     let videoUrl: string | undefined;
     let videoSize: number | undefined;
 
-    if (file?.filename) {
-      videoUrl = `uploads/${file.filename}`;
+    if (file?.blobUrl) {
+      videoUrl = file.blobUrl;
       videoSize = file.size ? file.size / (1024 * 1024) : undefined;
     } else if (input.videoUrl) {
       videoUrl = input.videoUrl;

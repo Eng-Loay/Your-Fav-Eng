@@ -1,41 +1,49 @@
+import { createHash } from 'crypto';
 import { env } from '../config/env';
+import { tryGetRedis } from '../lib/redis';
 
 const GEMINI_MODEL = 'gemini-3.6-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const COOLDOWN_MS = 60_000; // how long a rate-limited key is skipped before being retried
-const BACKOFF_MS = 1500; // pause before one final pass across all keys if every key failed
+const COOLDOWN_MS = 60_000;
+const BACKOFF_MS = 1500;
+const COOLDOWN_PREFIX = 'lms:gemini:cooldown:';
 
 export interface GeminiMessage {
   role: 'user' | 'model';
   text: string;
 }
 
-interface KeyState {
-  key: string;
-  cooldownUntil: number;
-}
-
-// Round-robins across every configured key so load spreads evenly, and skips any key
-// that recently hit a 429 (rate limit) until its cooldown passes — so students transparently
-// fall over to the next free-tier project instead of seeing a hard failure.
-const keyStates: KeyState[] = env.geminiApiKeys.map((key) => ({ key, cooldownUntil: 0 }));
+const keys = env.geminiApiKeys;
 let rrIndex = 0;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Keys ordered starting from the next round-robin slot, available (not cooling down) ones first. */
-function orderedKeys(): KeyState[] {
-  const n = keyStates.length;
-  const rotated: KeyState[] = [];
-  for (let i = 0; i < n; i++) rotated.push(keyStates[(rrIndex + i) % n]);
-  rrIndex = (rrIndex + 1) % n;
+function keyHash(key: string): string {
+  return createHash('sha256').update(key).digest('hex').slice(0, 16);
+}
 
-  const now = Date.now();
-  const available = rotated.filter((k) => k.cooldownUntil <= now);
-  const cooling = rotated.filter((k) => k.cooldownUntil > now);
-  return [...available, ...cooling];
+async function isCooling(key: string): Promise<boolean> {
+  const redis = tryGetRedis();
+  if (!redis) return false;
+  const value = await redis.get(`${COOLDOWN_PREFIX}${keyHash(key)}`);
+  return Boolean(value);
+}
+
+async function markCooldown(key: string): Promise<void> {
+  const redis = tryGetRedis();
+  if (!redis) return;
+  await redis.set(`${COOLDOWN_PREFIX}${keyHash(key)}`, '1', { ex: Math.ceil(COOLDOWN_MS / 1000) });
+}
+
+async function orderedKeys(): Promise<string[]> {
+  const n = keys.length;
+  const rotated: string[] = [];
+  for (let i = 0; i < n; i++) rotated.push(keys[(rrIndex + i) % n]);
+  rrIndex = n === 0 ? 0 : (rrIndex + 1) % n;
+  const flags = await Promise.all(rotated.map(async (key) => ({ key, cooling: await isCooling(key) })));
+  return [...flags.filter((k) => !k.cooling), ...flags.filter((k) => k.cooling)].map((k) => k.key);
 }
 
 async function requestWithKey(key: string, body: Record<string, unknown>): Promise<{ ok: true; data: any } | { ok: false; status: number; message: string }> {
@@ -56,29 +64,26 @@ async function requestWithKey(key: string, body: Record<string, unknown>): Promi
 }
 
 async function callGemini(body: Record<string, unknown>): Promise<any> {
-  if (keyStates.length === 0) {
+  if (keys.length === 0) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
 
-  const order = orderedKeys();
+  const order = await orderedKeys();
   let lastMessage = '';
 
-  for (const state of order) {
-    const result = await requestWithKey(state.key, body);
+  for (const key of order) {
+    const result = await requestWithKey(key, body);
     if (result.ok) return result.data;
 
     lastMessage = result.message;
     if (result.status === 429 || result.status === 503) {
-      state.cooldownUntil = Date.now() + COOLDOWN_MS;
+      await markCooldown(key);
     }
-    // any other error (bad key, malformed request) — just try the next key too
   }
 
-  // Every key failed on the first pass (likely all rate-limited at once) — one short
-  // backoff, then a single retry pass in case cooldowns were overly cautious.
   await sleep(BACKOFF_MS);
-  for (const state of order) {
-    const result = await requestWithKey(state.key, body);
+  for (const key of order) {
+    const result = await requestWithKey(key, body);
     if (result.ok) return result.data;
     lastMessage = result.message;
   }

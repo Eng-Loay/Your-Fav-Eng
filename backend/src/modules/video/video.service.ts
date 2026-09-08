@@ -1,20 +1,18 @@
 import prisma from '../../config/database';
-import path from 'path';
-import fs from 'fs';
-import { env } from '../../config/env';
+import { deleteStoredMedia, publicMediaUrl } from '../../lib/blob';
 
 export const videoService = {
   async upload(userId: string, file: Express.Multer.File) {
-    const filename = file.filename || path.basename((file as any).path || '');
-    const relativePath = `uploads/${filename}`;
+    const url = file.blobUrl;
+    if (!url) throw new Error('Upload was not persisted to Blob storage');
     const sizeMb = file.size ? file.size / (1024 * 1024) : 0;
 
     const fileRecord = await prisma.file.create({
       data: {
-        name: file.originalname || filename || 'video',
+        name: file.originalname || file.filename || 'video',
         type: 'VIDEO',
         size: sizeMb,
-        url: relativePath,
+        url,
         uploadedBy: userId,
       },
     });
@@ -22,13 +20,14 @@ export const videoService = {
     return {
       id: fileRecord.id,
       name: fileRecord.name,
-      url: relativePath,
+      url,
+      streamUrl: url,
       size: fileRecord.size,
       createdAt: fileRecord.createdAt,
     };
   },
 
-  async getStreamUrl(id: string, userId?: string) {
+  async getStreamUrl(id: string, _userId?: string) {
     const file = await prisma.file.findUnique({
       where: { id, type: 'VIDEO' },
       select: { id: true, name: true, url: true, uploadedBy: true },
@@ -36,16 +35,11 @@ export const videoService = {
 
     if (!file) return null;
 
-    const uploadDir = path.resolve(env.uploadDir);
-    const baseDir = path.dirname(uploadDir);
-    const fullPath = path.join(baseDir, file.url);
-
-    if (!fs.existsSync(fullPath)) return null;
-
+    const url = publicMediaUrl(file.url);
     return {
       id: file.id,
-      streamUrl: `/api/video/${file.id}/stream`,
-      url: file.url,
+      streamUrl: url,
+      url,
     };
   },
 
@@ -60,18 +54,7 @@ export const videoService = {
     const canDelete = file.uploadedBy === userId || userRole === 'ADMIN';
     if (!canDelete) return null;
 
-    const uploadDir = path.resolve(env.uploadDir);
-    const baseDir = path.dirname(uploadDir);
-    const fullPath = path.join(baseDir, file.url);
-
-    if (fs.existsSync(fullPath)) {
-      try {
-        fs.unlinkSync(fullPath);
-      } catch {
-        // Ignore file delete errors
-      }
-    }
-
+    await deleteStoredMedia(file.url);
     await prisma.file.delete({ where: { id } });
     return true;
   },

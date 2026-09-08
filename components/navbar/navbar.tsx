@@ -196,13 +196,13 @@ export function Navbar() {
       <div className="hidden lg:block bg-medex-red text-white text-xs">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-9">
           <div className="flex items-center gap-4">
-            <a href="tel:01287333308" className="flex items-center gap-1.5 hover:text-white/80 transition-colors">
+            <a href={`tel:${branding.contactPhone}`} className="flex items-center gap-1.5 hover:text-white/80 transition-colors">
               <Phone className="w-3 h-3" />
-              01287333308
+              {branding.contactPhone}
             </a>
             <span className="text-white/40">|</span>
-            <a href="mailto:hello@pds.agency" className="hover:text-white/80 transition-colors">
-              hello@pds.agency
+            <a href={`mailto:${branding.contactEmail}`} className="hover:text-white/80 transition-colors">
+              {branding.contactEmail}
             </a>
           </div>
           <div className="flex items-center gap-3">

@@ -24,8 +24,8 @@ export const lessonsController = {
       const id = Array.isArray(chapterId) ? chapterId[0] : chapterId;
 
       const body = { ...req.body };
-      if (req.file?.filename) {
-        body.videoUrl = `uploads/${req.file.filename}`;
+      if (req.file?.blobUrl) {
+        body.videoUrl = req.file.blobUrl;
         body.videoSize = req.file.size ? req.file.size / (1024 * 1024) : undefined;
       }
 

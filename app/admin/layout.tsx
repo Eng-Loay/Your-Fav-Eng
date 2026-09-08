@@ -220,8 +220,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const isActive = (path: string) => {
-    if (path === "/admin") return pathname === "/admin"
-    return pathname.startsWith(path)
+    const current = pathname ?? ""
+    if (path === "/admin") return current === "/admin"
+    return current.startsWith(path)
   }
 
   const handleLogout = () => {

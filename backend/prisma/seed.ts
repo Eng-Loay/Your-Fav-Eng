@@ -9,9 +9,11 @@ async function main() {
   // Create platform settings
   const settings = [
     { key: 'platform_name', value: 'Eng. Loay Essam', group: 'general' },
+    { key: 'site_url', value: 'https://your-fav-eng-lms.vercel.app', group: 'general' },
     { key: 'default_language', value: 'en', group: 'general' },
     { key: 'currency', value: 'GBP', group: 'general' },
-    { key: 'timezone', value: 'Europe/London', group: 'general' },
+    { key: 'timezone', value: 'Africa/Cairo', group: 'general' },
+    { key: 'support_email', value: 'essamloay2@gmail.com', group: 'general' },
     { key: 'commission_config', value: JSON.stringify({ type: 'percentage', percentage: 30, amountPerStudent: 0, tiers: [] }), group: 'payment' },
     { key: 'tax_rate', value: '0.00', group: 'payment' },
     { key: 'video_storage_rate_per_gb', value: '0.10', group: 'payment' },
@@ -42,6 +44,14 @@ async function main() {
     { key: 'logo', value: '/le-logo.png', group: 'branding' },
     { key: 'headerColor', value: '#FFFFFF', group: 'branding' },
     { key: 'footerColor', value: '#1345D6', group: 'branding' },
+    { key: 'contactPhone', value: '01273587216', group: 'branding' },
+    { key: 'contactEmail', value: 'essamloay2@gmail.com', group: 'branding' },
+    { key: 'contactAddress', value: 'الإسكندرية، العجمي', group: 'branding' },
+    { key: 'socialTwitter', value: '', group: 'branding' },
+    { key: 'socialLinkedin', value: 'https://www.linkedin.com/in/loay-essam/', group: 'branding' },
+    { key: 'socialYoutube', value: '', group: 'branding' },
+    { key: 'socialFacebook', value: 'https://www.facebook.com/lolo.3300/', group: 'branding' },
+    { key: 'socialInstagram', value: '', group: 'branding' },
   ];
   for (const s of brandingSettings) {
     await prisma.platformSetting.upsert({
@@ -239,10 +249,10 @@ async function main() {
   // Owner admin account
   const ownerAdminPassword = await bcrypt.hash('Loay#1234l', 12);
   await prisma.user.upsert({
-    where: { email: 'Loay@Eng.Com' },
-    update: { name: 'Eng. Loay Essam', role: 'ADMIN', status: 'ACTIVE', password: ownerAdminPassword },
+    where: { email: 'loay@eng.com' },
+    update: { name: 'Eng. Loay Essam', role: 'ADMIN', status: 'ACTIVE', password: ownerAdminPassword, emailVerified: true },
     create: {
-      email: 'Loay@Eng.Com',
+      email: 'loay@eng.com',
       password: ownerAdminPassword,
       name: 'Eng. Loay Essam',
       role: 'ADMIN',
@@ -274,11 +284,8 @@ async function main() {
     },
   });
 
-  // Delete other teachers (keep only Ammar Yasser and Eng. Loay Essam as instructors)
-  const keptTeacherEmails = ['ammar@aydentvision.com', 'Teacher@Eng.Com'];
-  await prisma.user.deleteMany({
-    where: { role: 'TEACHER', email: { notIn: keptTeacherEmails } },
-  });
+  // Do not delete other teacher rows here — a seed run must never remove
+  // real accounts created outside this script.
 
   // Create sample students
   const studentPassword = await bcrypt.hash('student123', 12);
@@ -405,7 +412,7 @@ async function main() {
   console.log('\nTest accounts:');
   console.log('Admin: admin@aydentvision.com / admin123');
   console.log('Legacy admin: admin@admin.com / admin123');
-  console.log('Owner admin: Loay@Eng.Com / Loay#1234l');
+  console.log('Owner admin: loay@eng.com / Loay#1234l');
   console.log('Teacher: ammar@aydentvision.com / instructor123 (Ammar Yasser)');
   console.log('Student:    student1@aydentvision.com / student123');
   console.log('Student:    student2@aydentvision.com / student123');

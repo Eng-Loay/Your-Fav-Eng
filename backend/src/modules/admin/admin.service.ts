@@ -1643,8 +1643,8 @@ export const adminService = {
 
   // ==================== FILES ====================
   async uploadFile(userId: string, file: Express.Multer.File) {
-    const filename = file.filename || (file as any).filename || '';
-    const relativePath = `uploads/${filename}`;
+    const url = file.blobUrl;
+    if (!url) throw new Error('Upload was not persisted to Blob storage');
     const sizeMb = file.size ? file.size / (1024 * 1024) : 0;
     const mime = (file.mimetype || '').toLowerCase();
     let type = 'OTHER';
@@ -1655,10 +1655,10 @@ export const adminService = {
 
     const fileRecord = await prisma.file.create({
       data: {
-        name: file.originalname || filename || 'file',
+        name: file.originalname || file.filename || 'file',
         type,
         size: sizeMb,
-        url: relativePath,
+        url,
         uploadedBy: userId,
       },
     });
@@ -1666,7 +1666,7 @@ export const adminService = {
     return {
       id: fileRecord.id,
       name: fileRecord.name,
-      url: `/${relativePath}`,
+      url: fileRecord.url,
       type: type.toLowerCase(),
     };
   },

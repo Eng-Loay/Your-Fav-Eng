@@ -101,8 +101,8 @@ export const communityController = {
       }
 
       let image: string | undefined;
-      if ((req as any).file) {
-        image = `/uploads/${(req as any).file.filename}`;
+      if (req.file?.blobUrl) {
+        image = req.file.blobUrl;
       }
 
       const post = await prisma.communityPost.create({

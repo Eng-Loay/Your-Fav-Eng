@@ -1,17 +1,21 @@
 /** Get API base URL - production uses same domain /api, dev uses hostname:port */
-import { getDevMembershipTemplate, saveDevMembershipTemplate, type StoredMembershipTemplate } from './dev-membership-template-store';
 
 export function getApiBase(): string {
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
   if (envUrl) return envUrl;
   if (typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:5001/api`;
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return `${window.location.origin}/api`;
+    }
+    return `http://${host}:5001/api`;
   }
+  if (process.env.VERCEL) return '/api';
   return 'http://localhost:5001/api';
 }
 
 /** Default fetch timeout — keep low so dead backend fails fast */
-const FETCH_TIMEOUT_MS = 5000;
+const FETCH_TIMEOUT_MS = 15000;
 const AUTH_TIMEOUT_MS = 3000;
 const BACKEND_COOLDOWN_MS = 15000;
 
@@ -171,79 +175,6 @@ class ApiClient {
 
   async request<T = any>(endpoint: string, options: ApiOptions = {}): Promise<{ success: boolean; data?: T; message?: string; pagination?: any }> {
     const { method = 'GET', body, headers = {}, isFormData = false, timeoutMs = FETCH_TIMEOUT_MS } = options;
-
-    // Membership templates: persist to server file (reliable) with localStorage fallback
-    if (typeof window !== 'undefined' && endpoint === '/membership/admin/templates' && method === 'GET') {
-      try {
-        const res = await fetch(`${window.location.origin}/api/admin/membership-template`, {
-          cache: 'no-store',
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json?.success && json?.data) {
-            const template = Array.isArray(json.data) ? json.data[0] : json.data;
-            if (template) {
-              saveDevMembershipTemplate(template as StoredMembershipTemplate);
-              return { success: true, data: [template] as T };
-            }
-          }
-        }
-      } catch {
-        // fall through to localStorage
-      }
-      return { success: true, data: [getDevMembershipTemplate()] as T };
-    }
-    if (
-      typeof window !== 'undefined' &&
-      method !== 'GET' &&
-      endpoint.startsWith('/membership/admin/templates')
-    ) {
-      if ((method === 'POST' || method === 'PUT') && body && typeof body === 'object') {
-        try {
-          const res = await fetch(`${window.location.origin}/api/admin/membership-template`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          });
-          const json = await res.json();
-          if (json?.success) {
-            const saved = json.data || { ...getDevMembershipTemplate(), ...(body as object) };
-            saveDevMembershipTemplate(saved as StoredMembershipTemplate);
-            return { success: true, data: saved, message: 'OK' };
-          }
-          return { success: false, message: json?.message || 'Save failed' };
-        } catch {
-          // fall through to localStorage
-        }
-      }
-      const existing = getDevMembershipTemplate();
-      if (method === 'POST' && body && typeof body === 'object') {
-        saveDevMembershipTemplate({
-          ...existing,
-          id: existing.id || 'mtpl-dev',
-          ...(body as Record<string, unknown>),
-          isDefault: true,
-        } as StoredMembershipTemplate);
-      } else if (method === 'PUT' && body && typeof body === 'object') {
-        const id = endpoint.split('/').pop() || existing.id || 'mtpl-dev';
-        const incoming = body as Record<string, unknown>;
-        saveDevMembershipTemplate({
-          ...existing,
-          id,
-          name: (incoming.name as string) || existing.name,
-          nameAr: (incoming.nameAr as string) || existing.nameAr,
-          imageUrl: (incoming.imageUrl as string) || existing.imageUrl,
-          overlayFields:
-            typeof incoming.overlayFields === 'string'
-              ? incoming.overlayFields
-              : existing.overlayFields,
-          isDefault: true,
-        } as StoredMembershipTemplate);
-      } else if (method === 'DELETE') {
-        localStorage.removeItem('lms_dev_membership_template_v3');
-      }
-      return { success: true, message: 'OK' };
-    }
 
     const token = this.getToken();
     const requestHeaders: Record<string, string> = {
