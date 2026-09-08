@@ -7,7 +7,7 @@ import { generateMembershipPdf, saveMembershipPdf } from './membership-pdf';
 function generateMembershipNo(): string {
   const year = new Date().getFullYear();
   const rand = Math.floor(100000 + Math.random() * 900000);
-  return `IAGRCP-${year}-${rand}`;
+  return `LE-${year}-${rand}`;
 }
 
 function formatDate(d: Date): string {

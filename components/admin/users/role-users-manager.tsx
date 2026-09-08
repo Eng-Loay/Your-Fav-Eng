@@ -16,6 +16,7 @@ import {
   Key,
   LogIn,
   Ban,
+  UserCheck,
   ChevronLeft,
   ChevronRight,
   X,
@@ -54,6 +55,12 @@ export default function RoleUsersManager({ role, titleAr, titleEn, descAr, descE
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editUser, setEditUser] = useState<any>(null)
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [assignUser, setAssignUser] = useState<any>(null)
+  const [teachers, setTeachers] = useState<{ id: string; name: string }[]>([])
+  const [loadingTeachers, setLoadingTeachers] = useState(false)
+  const [selectedTeacherId, setSelectedTeacherId] = useState("")
+  const [assigning, setAssigning] = useState(false)
   const [openAction, setOpenAction] = useState<string | null>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
@@ -228,6 +235,45 @@ export default function RoleUsersManager({ role, titleAr, titleEn, descAr, descE
       showToast(isAr ? "تم تسجيل الدخول كمستخدم" : "Logged in as user", "info")
       window.location.href = "/"
     } else showToast(res.message || (isAr ? "فشل" : "Failed"), "error")
+  }
+
+  const openAssignModal = async (user: any) => {
+    setAssignUser(user)
+    setSelectedTeacherId("")
+    setShowAssignModal(true)
+    setOpenAction(null)
+    setMenuPos(null)
+    setLoadingTeachers(true)
+    try {
+      const res = await api.getAdminUsers({ role: "teacher", limit: 100 })
+      const raw = res.data as any
+      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : [])
+      setTeachers(list.map((t: any) => ({ id: t.id, name: safeStr(t.name) || t.email })))
+    } catch {
+      showToast(isAr ? "فشل تحميل قائمة المدرّسين" : "Failed to load teachers", "error")
+    } finally {
+      setLoadingTeachers(false)
+    }
+  }
+
+  const handleAssignTeacher = async () => {
+    if (!assignUser || !selectedTeacherId) return
+    setAssigning(true)
+    try {
+      const res = await api.approveStudent(assignUser.id, selectedTeacherId)
+      if (res.success) {
+        showToast(isAr ? "تم تعيين المدرّس بنجاح" : "Teacher assigned successfully")
+        setShowAssignModal(false)
+        setAssignUser(null)
+        refetch()
+      } else {
+        showToast(res.message || (isAr ? "فشل في التعيين" : "Failed to assign"), "error")
+      }
+    } catch {
+      showToast(isAr ? "حدث خطأ" : "An error occurred", "error")
+    } finally {
+      setAssigning(false)
+    }
   }
 
   const toggleSelect = (id: string) => {
@@ -477,6 +523,11 @@ export default function RoleUsersManager({ role, titleAr, titleEn, descAr, descE
                             <button onClick={() => handleImpersonate(user.id)} className="flex items-center gap-2 px-3 py-2 text-sm text-[#64748B] hover:bg-[#F1F5F9] w-full">
                               <LogIn className="w-3.5 h-3.5" /> {isAr ? "تسجيل دخول كمستخدم" : "Login as User"}
                             </button>
+                            {role === "student" && (
+                              <button onClick={() => openAssignModal(user)} className="flex items-center gap-2 px-3 py-2 text-sm text-[#64748B] hover:bg-[#F1F5F9] w-full">
+                                <UserCheck className="w-3.5 h-3.5" /> {isAr ? "تعيين لمدرّس" : "Assign to Teacher"}
+                              </button>
+                            )}
                             <button onClick={() => handleToggleStatus(user)} className="flex items-center gap-2 px-3 py-2 text-sm text-[#64748B] hover:bg-[#F1F5F9] w-full">
                               <Ban className="w-3.5 h-3.5" /> {user.status === "active" ? (isAr ? "تعطيل" : "Disable") : (isAr ? "تفعيل" : "Enable")}
                             </button>
@@ -580,6 +631,45 @@ export default function RoleUsersManager({ role, titleAr, titleEn, descAr, descE
               <Button variant="outline" onClick={() => { setShowEditModal(false); setEditUser(null) }} className="rounded-xl">{isAr ? "إلغاء" : "Cancel"}</Button>
               <Button onClick={handleEditUser} disabled={saving} className="rounded-xl bg-primary hover:bg-primary-hover text-white">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (isAr ? "حفظ" : "Save")}
+              </Button>
+            </div>
+          </m.div>
+        </div>
+      )}
+
+      {/* Assign Teacher Modal */}
+      {showAssignModal && assignUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <m.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-[#E2E8F0]/60">
+              <h3 className="text-lg font-bold text-[#0F172A]">{isAr ? "تعيين لمدرّس" : "Assign to Teacher"}</h3>
+              <button onClick={() => { setShowAssignModal(false); setAssignUser(null) }} className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#F1F5F9]"><X className="w-4 h-4 text-[#64748B]" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-[#64748B]">
+                {isAr ? `الطالب: ${safeStr(assignUser.name)}` : `Student: ${safeStr(assignUser.name)}`}
+              </p>
+              <div>
+                <label className="text-sm font-medium text-[#0F172A] block mb-1.5">{isAr ? "المدرّس" : "Teacher"} *</label>
+                {loadingTeachers ? (
+                  <div className="flex items-center gap-2 text-sm text-[#94A3B8] py-2"><Loader2 className="w-4 h-4 animate-spin" /> {isAr ? "جارِ التحميل..." : "Loading..."}</div>
+                ) : (
+                  <select value={selectedTeacherId} onChange={(e) => setSelectedTeacherId(e.target.value)} className="w-full border border-[#E2E8F0]/60 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary bg-white">
+                    <option value="">{isAr ? "اختر مدرّس..." : "Select teacher..."}</option>
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                )}
+                {!loadingTeachers && teachers.length === 0 && (
+                  <p className="text-xs text-[#94A3B8] mt-1">{isAr ? "لا يوجد مدرّسون متاحون" : "No teachers available"}</p>
+                )}
+              </div>
+            </div>
+            <div className="p-5 border-t border-[#E2E8F0]/60 flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => { setShowAssignModal(false); setAssignUser(null) }} className="rounded-xl">{isAr ? "إلغاء" : "Cancel"}</Button>
+              <Button onClick={handleAssignTeacher} disabled={assigning || !selectedTeacherId} className="rounded-xl bg-primary hover:bg-primary-hover text-white">
+                {assigning ? <Loader2 className="w-4 h-4 animate-spin" /> : (isAr ? "تعيين" : "Assign")}
               </Button>
             </div>
           </m.div>
