@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { m } from "framer-motion"
-import { Camera, Check, Lock } from "lucide-react"
+import { Camera, Check, Lock, User as UserIcon } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
 import { safeStr } from "@/lib/utils"
 import { useStore } from "@/lib/store"
@@ -27,6 +27,9 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [changingPassword, setChangingPassword] = useState(false)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (user) {
@@ -54,6 +57,30 @@ export default function ProfilePage() {
       showToast(locale === "ar" ? "حدث خطأ" : "Something went wrong", "error")
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    const previewUrl = URL.createObjectURL(file)
+    setAvatarPreview(previewUrl)
+    setUploadingAvatar(true)
+    try {
+      const res = await api.uploadAvatar(file)
+      if (res.success) {
+        await refreshUser()
+        showToast(locale === "ar" ? "تم تحديث الصورة الشخصية" : "Profile photo updated", "success")
+      } else {
+        setAvatarPreview(null)
+        showToast(res.message ?? (locale === "ar" ? "فشل رفع الصورة" : "Failed to upload photo"), "error")
+      }
+    } catch {
+      setAvatarPreview(null)
+      showToast(locale === "ar" ? "حدث خطأ أثناء رفع الصورة" : "Something went wrong uploading the photo", "error")
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
@@ -107,11 +134,25 @@ export default function ProfilePage() {
         >
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
             <div className="relative">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
               <Avatar className="w-24 h-24">
-                <AvatarImage src={user?.avatar ?? "/user-avatar.png"} />
-                <AvatarFallback className="text-2xl">AS</AvatarFallback>
+                <AvatarImage src={avatarPreview ?? user?.avatar ?? undefined} />
+                <AvatarFallback className="text-2xl">
+                  <UserIcon className="w-10 h-10 text-muted-foreground" />
+                </AvatarFallback>
               </Avatar>
-              <button className="absolute -bottom-1 -end-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white shadow-lg">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute -bottom-1 -end-1 w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white shadow-lg disabled:opacity-60"
+              >
                 <Camera className="w-4 h-4" />
               </button>
             </div>
