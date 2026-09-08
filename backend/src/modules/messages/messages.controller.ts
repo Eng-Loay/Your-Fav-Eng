@@ -190,8 +190,8 @@ export const messagesController = {
 
   async uploadAttachment(req: AuthRequest, res: Response) {
     try {
-      if (!req.file?.filename) return ApiResponse.badRequest(res, 'No file provided');
-      const url = `/uploads/${req.file.filename}`;
+      if (!req.file?.blobUrl) return ApiResponse.badRequest(res, 'No file provided');
+      const url = req.file.blobUrl;
       const isImage = (req.file.mimetype || '').startsWith('image/');
       const isAudio = (req.file.mimetype || '').startsWith('audio/');
       const attachmentType = isImage ? 'image' : isAudio ? 'audio' : undefined;

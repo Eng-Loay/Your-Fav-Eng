@@ -2,7 +2,6 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import path from 'path';
-import { env } from '../../config/env';
 import type { OverlayField } from '../certificates/certificate-generator';
 import {
   drawCalibratedMembershipFields,
@@ -86,31 +85,11 @@ async function loadTemplateImage(imageUrl: string): Promise<{ buffer: Buffer; is
     return { buffer, isPng: mime === 'png' };
   }
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    const uploadDir = path.resolve(env.uploadDir);
-    const uploadsMatch = imageUrl.match(/\/(uploads\/[^?#]+)/);
-    if (uploadsMatch) {
-      const relPath = uploadsMatch[1].replace(/^\/?uploads\//, '');
-      const fullPath = path.join(uploadDir, relPath);
-      if (fs.existsSync(fullPath)) {
-        const buffer = fs.readFileSync(fullPath);
-        const ext = path.extname(fullPath).toLowerCase().slice(1) || 'png';
-        return { buffer, isPng: ext === 'png' };
-      }
-    }
     const res = await fetch(imageUrl);
     if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
     const buffer = Buffer.from(await res.arrayBuffer());
     const contentType = res.headers.get('content-type') || '';
     return { buffer, isPng: contentType.includes('png') };
-  }
-  if (imageUrl.startsWith('uploads/') || imageUrl.startsWith('/uploads/')) {
-    const uploadDir = path.resolve(env.uploadDir);
-    const relPath = imageUrl.replace(/^\/?uploads\//, '');
-    const fullPath = path.join(uploadDir, relPath);
-    if (!fs.existsSync(fullPath)) throw new Error(`Template image not found: ${relPath}`);
-    const buffer = fs.readFileSync(fullPath);
-    const ext = path.extname(fullPath).toLowerCase().slice(1) || 'png';
-    return { buffer, isPng: ext === 'png' };
   }
   if (imageUrl.startsWith('/')) {
     const publicPath = path.resolve(process.cwd(), '../public', imageUrl.replace(/^\//, ''));
@@ -233,12 +212,8 @@ export async function saveMembershipPdf(
   template?: MembershipTemplateInput | null
 ): Promise<string> {
   const buffer = await generateMembershipPdf(data, template);
-  const uploadDir = path.resolve(env.uploadDir, 'memberships');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
+  const { persistBuffer } = await import('../../lib/blob');
   const filename = `membership-${membershipNo.replace(/[^a-zA-Z0-9-]/g, '')}.pdf`;
-  const fullPath = path.join(uploadDir, filename);
-  fs.writeFileSync(fullPath, buffer);
-  return `/uploads/memberships/${filename}`;
+  const stored = await persistBuffer(buffer, filename, 'application/pdf', 'uploads/memberships');
+  return stored.url;
 }

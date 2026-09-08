@@ -3,12 +3,12 @@ import fontkit from '@pdf-lib/fontkit';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
-import { env } from '../../config/env';
 
-const FONT_PATH = path.resolve(
-  process.cwd(),
-  'node_modules/@fontsource/amiri/files/amiri-arabic-400-normal.woff'
-);
+const FONT_CANDIDATES = [
+  path.resolve(process.cwd(), 'fonts/Amiri-Regular.ttf'),
+  path.resolve(process.cwd(), 'node_modules/@fontsource/amiri/files/amiri-arabic-400-normal.woff'),
+];
+const FONT_PATH = FONT_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || FONT_CANDIDATES[0];
 
 export interface OverlayField {
   id: string;
@@ -85,18 +85,6 @@ async function getImageBuffer(imageUrl: string): Promise<{ buffer: ArrayBuffer; 
     }
   }
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-    const uploadDir = path.resolve(env.uploadDir);
-    const uploadsMatch = imageUrl.match(/\/(uploads\/[^?#]+)/);
-    if (uploadsMatch) {
-      const relPath = uploadsMatch[1].replace(/^\/?uploads\//, '');
-      const fullPath = path.join(uploadDir, relPath);
-      if (fs.existsSync(fullPath)) {
-        const buffer = fs.readFileSync(fullPath);
-        const ext = path.extname(fullPath).toLowerCase().slice(1) || 'png';
-        const mime = ext === 'jpg' ? 'jpeg' : ext;
-        return toPngIfNeeded(buffer, mime);
-      }
-    }
     const res = await fetch(imageUrl);
     if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
     const arr = await res.arrayBuffer();
@@ -111,16 +99,6 @@ async function getImageBuffer(imageUrl: string): Promise<{ buffer: ArrayBuffer; 
           : contentType.includes('gif')
             ? 'gif'
             : 'png';
-    return toPngIfNeeded(buffer, mime);
-  }
-  if (imageUrl.startsWith('uploads/') || imageUrl.startsWith('/uploads/')) {
-    const uploadDir = path.resolve(env.uploadDir);
-    const relPath = imageUrl.replace(/^\/?uploads\//, '');
-    const fullPath = path.join(uploadDir, relPath);
-    if (!fs.existsSync(fullPath)) throw new Error(`Template image not found: ${relPath}`);
-    const buffer = fs.readFileSync(fullPath);
-    const ext = path.extname(fullPath).toLowerCase().slice(1) || 'png';
-    const mime = ext === 'jpg' ? 'jpeg' : ext;
     return toPngIfNeeded(buffer, mime);
   }
   throw new Error('Invalid image URL format');

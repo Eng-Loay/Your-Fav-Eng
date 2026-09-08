@@ -1,0 +1,27 @@
+{
+  "services": {
+    "frontend": {
+      "root": ".",
+      "framework": "nextjs",
+      "installCommand": "npm install"
+    },
+    "backend": {
+      "root": "backend",
+      "framework": "express",
+      "entrypoint": "src/index.ts",
+      "installCommand": "npm install",
+      "functions": {
+        "src/index.ts": {
+          "maxDuration": 300,
+          "includeFiles": "{assets,fonts}/**"
+        }
+      }
+    }
+  },
+  "rewrites": [
+    { "source": "/api/messages/ws", "destination": { "service": "backend" } },
+    { "source": "/api/games/ws", "destination": { "service": "backend" } },
+    { "source": "/api/(.*)", "destination": { "service": "backend" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
+}

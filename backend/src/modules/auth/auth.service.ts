@@ -342,11 +342,10 @@ export const authService = {
     });
   },
 
-  async uploadAvatar(userId: string, filename: string): Promise<AuthUser> {
-    const avatarPath = `uploads/${filename}`;
+  async uploadAvatar(userId: string, avatarUrl: string): Promise<AuthUser> {
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { avatar: avatarPath },
+      data: { avatar: avatarUrl },
       select: {
         id: true,
         email: true,

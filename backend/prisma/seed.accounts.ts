@@ -11,8 +11,11 @@ type SeedAccount = {
 };
 
 const accounts: SeedAccount[] = [
+  { role: 'ADMIN', email: 'loay@eng.com', name: 'Eng. Loay Essam', password: 'Loay#1234l' },
   { role: 'ADMIN', email: 'admin@animka.com', name: 'Admin', password: 'Admin123!' },
   { role: 'ADMIN', email: 'admin@admin.com', name: 'Admin', password: 'Admin123!' },
+  { role: 'TEACHER', email: 'instructor@iagrcp.org', name: 'IAGRCP Instructor', password: 'Test@2026' },
+  { role: 'TEACHER', email: 'ammar@aydentvision.com', name: 'Ammar Yasser', password: 'instructor123' },
   { role: 'TEACHER', email: 'teacher@animka.com', name: 'Teacher', password: 'teacher123' },
   { role: 'STUDENT', email: 'student1@animka.com', name: 'Student 1', password: 'student123' },
   { role: 'STUDENT', email: 'student2@animka.com', name: 'Student 2', password: 'student123' },

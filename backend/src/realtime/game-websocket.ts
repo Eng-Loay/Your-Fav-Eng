@@ -4,6 +4,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { env } from '../config/env';
 import prisma from '../config/database';
 import { gamesService } from '../modules/games/games.service';
+import { publishChannel, REDIS_CHANNELS, subscribeChannel } from '../lib/redis';
+import { getSharedWebSocketServer, registerSocketPath } from './shared-wss';
 
 type Role = 'host' | 'player';
 
@@ -49,27 +51,40 @@ function send(socket: GameSocket, type: string, payload: any) {
   }
 }
 
-function broadcastToHost(sessionId: string, type: string, payload: any) {
-  const room = rooms.get(sessionId);
+type GameFanout =
+  | { kind: 'host'; sessionId: string; type: string; payload: any }
+  | { kind: 'player'; sessionId: string; userId: string; type: string; payload: any }
+  | { kind: 'room'; sessionId: string; type: string; payload: any };
+
+function applyGameFanout(event: GameFanout) {
+  const room = rooms.get(event.sessionId);
   if (!room) return;
-  for (const socket of room.hostSockets) send(socket, type, payload);
+  if (event.kind === 'host') {
+    for (const socket of room.hostSockets) send(socket, event.type, event.payload);
+    return;
+  }
+  if (event.kind === 'player') {
+    const set = room.playerSockets.get(event.userId);
+    if (!set) return;
+    for (const socket of set) send(socket, event.type, event.payload);
+    return;
+  }
+  for (const socket of room.hostSockets) send(socket, event.type, event.payload);
+  for (const set of room.playerSockets.values()) {
+    for (const socket of set) send(socket, event.type, event.payload);
+  }
+}
+
+function broadcastToHost(sessionId: string, type: string, payload: any) {
+  void publishChannel(REDIS_CHANNELS.games, { kind: 'host', sessionId, type, payload } satisfies GameFanout);
 }
 
 function broadcastToPlayer(sessionId: string, userId: string, type: string, payload: any) {
-  const room = rooms.get(sessionId);
-  if (!room) return;
-  const set = room.playerSockets.get(userId);
-  if (!set) return;
-  for (const socket of set) send(socket, type, payload);
+  void publishChannel(REDIS_CHANNELS.games, { kind: 'player', sessionId, userId, type, payload } satisfies GameFanout);
 }
 
 function broadcastToRoom(sessionId: string, type: string, payload: any) {
-  const room = rooms.get(sessionId);
-  if (!room) return;
-  for (const socket of room.hostSockets) send(socket, type, payload);
-  for (const set of room.playerSockets.values()) {
-    for (const socket of set) send(socket, type, payload);
-  }
+  void publishChannel(REDIS_CHANNELS.games, { kind: 'room', sessionId, type, payload } satisfies GameFanout);
 }
 
 async function broadcastLobbyUpdate(sessionId: string) {
@@ -82,32 +97,32 @@ async function broadcastLobbyUpdate(sessionId: string) {
       joinedAt: p.joinedAt,
     })),
   };
-  broadcastToHost(sessionId, 'lobby:update', payload);
   broadcastToRoom(sessionId, 'lobby:update', payload);
 }
 
 let wss: WebSocketServer | null = null;
+let subscribed = false;
 
 const WS_PATH = '/api/games/ws';
 
+function ensureRedisFanout() {
+  if (subscribed) return;
+  subscribed = true;
+  subscribeChannel(REDIS_CHANNELS.games, (raw) => {
+    const event = raw as GameFanout;
+    if (!event || !event.kind || !event.sessionId) return;
+    applyGameFanout(event);
+  });
+}
+
 export function initGameWebSocketServer(server: Server) {
   if (wss) return wss;
+  ensureRedisFanout();
 
-  // noServer + a manual, non-destructive path check — see websocket.ts for why:
-  // ws's built-in {server, path} mode aborts any mismatched upgrade with HTTP 400
-  // immediately, which breaks coexistence with the other WebSocketServer (messages)
-  // already registered on this same http.Server.
-  wss = new WebSocketServer({ noServer: true });
-
-  server.on('upgrade', (req, socket, head) => {
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
-    if (url.pathname !== WS_PATH) return;
-    wss!.handleUpgrade(req, socket, head, (ws) => {
-      wss!.emit('connection', ws, req);
-    });
-  });
-
-  wss.on('connection', async (socket: GameSocket, req) => {
+  wss = getSharedWebSocketServer(server);
+  registerSocketPath(WS_PATH, (rawSocket, req) => {
+    const socket = rawSocket as GameSocket;
+    void (async () => {
     // Attach the message listener synchronously, before any `await` below, so a client
     // that sends its first message immediately on `open` can't have it silently dropped
     // while the async auth/role-resolution setup is still in flight. Messages are queued
@@ -224,6 +239,7 @@ export function initGameWebSocketServer(server: Server) {
     } catch {
       socket.close(4003, 'Auth failed');
     }
+    })();
   });
 
   return wss;

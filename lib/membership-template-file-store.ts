@@ -1,5 +1,3 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
-import path from "path"
 import { DEFAULT_MEMBERSHIP_TEMPLATE } from "@/lib/membership-pdf-shared"
 
 export type FileMembershipTemplate = {
@@ -10,9 +8,6 @@ export type FileMembershipTemplate = {
   overlayFields?: string | null
   isDefault?: boolean
 }
-
-const DATA_DIR = path.join(process.cwd(), "data")
-const DATA_FILE = path.join(DATA_DIR, "membership-template.json")
 
 function defaultTemplate(): FileMembershipTemplate {
   return {
@@ -25,38 +20,19 @@ function defaultTemplate(): FileMembershipTemplate {
   }
 }
 
+/** Read-only defaults. Persistence lives in Prisma MembershipTemplate via the Express API. */
 export function readMembershipTemplateFile(): FileMembershipTemplate {
-  try {
-    if (!existsSync(DATA_FILE)) return defaultTemplate()
-    const raw = readFileSync(DATA_FILE, "utf8")
-    const parsed = JSON.parse(raw) as Partial<FileMembershipTemplate>
-    const base = defaultTemplate()
-    return {
-      ...base,
-      ...parsed,
-      id: parsed.id || base.id,
-      name: parsed.name || base.name,
-      overlayFields: parsed.overlayFields ?? base.overlayFields,
-    }
-  } catch {
-    return defaultTemplate()
-  }
+  return defaultTemplate()
 }
 
 export function writeMembershipTemplateFile(
   patch: Partial<FileMembershipTemplate>
 ): FileMembershipTemplate {
-  const current = readMembershipTemplateFile()
-  const next: FileMembershipTemplate = {
-    ...current,
+  return {
+    ...defaultTemplate(),
     ...patch,
-    id: patch.id || current.id || "mtpl-dev",
-    name: patch.name || current.name,
-    overlayFields: patch.overlayFields ?? current.overlayFields,
-    isDefault: patch.isDefault ?? current.isDefault ?? true,
+    id: patch.id || "mtpl-dev",
+    name: patch.name || defaultTemplate().name,
+    isDefault: patch.isDefault ?? true,
   }
-
-  mkdirSync(DATA_DIR, { recursive: true })
-  writeFileSync(DATA_FILE, JSON.stringify(next, null, 2), "utf8")
-  return next
 }

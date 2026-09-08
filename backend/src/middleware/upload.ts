@@ -1,25 +1,11 @@
 import multer from 'multer';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env';
-import fs from 'fs';
+import { persistUpload } from '../lib/blob';
 
-const uploadDir = path.resolve(env.uploadDir);
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+const storage = multer.memoryStorage();
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
-  },
-});
-
-const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedMimes = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'video/mp4', 'video/webm', 'video/quicktime',
@@ -43,7 +29,32 @@ export const upload = multer({
   limits: { fileSize: env.maxFileSize },
 });
 
-export const uploadImage = upload.single('image');
-export const uploadVideo = upload.single('video');
-export const uploadFile = upload.single('file');
-export const uploadMultiple = upload.array('files', 10);
+function wrapBlob(middleware: ReturnType<typeof upload.single>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    middleware(req, res, async (err: unknown) => {
+      if (err) {
+        next(err);
+        return;
+      }
+      try {
+        if (req.file) {
+          await persistUpload(req.file);
+        }
+        const files = (req as Request & { files?: Express.Multer.File[] }).files;
+        if (Array.isArray(files)) {
+          for (const file of files) {
+            await persistUpload(file);
+          }
+        }
+        next();
+      } catch (uploadErr) {
+        next(uploadErr);
+      }
+    });
+  };
+}
+
+export const uploadImage = wrapBlob(upload.single('image'));
+export const uploadVideo = wrapBlob(upload.single('video'));
+export const uploadFile = wrapBlob(upload.single('file'));
+export const uploadMultiple = wrapBlob(upload.array('files', 10) as ReturnType<typeof upload.single>);

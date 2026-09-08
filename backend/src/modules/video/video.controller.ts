@@ -21,6 +21,11 @@ export const videoController = {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const result = await videoService.getStreamUrl(id, req.user?.id);
       if (!result) return ApiResponse.notFound(res, 'Video not found');
+      const accept = String(req.headers.accept || '');
+      const wantsFile = req.query.redirect === '1' || accept.includes('video/') || accept.includes('application/octet-stream');
+      if (wantsFile && result.streamUrl.startsWith('http')) {
+        return res.redirect(302, result.streamUrl);
+      }
       return ApiResponse.success(res, result);
     } catch (err) {
       return ApiResponse.error(res, 'Failed to get stream URL', 500);
