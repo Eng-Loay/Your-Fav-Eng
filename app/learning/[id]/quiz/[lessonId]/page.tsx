@@ -36,22 +36,18 @@ export default function LessonQuizPage() {
     return raw.map((qq, idx) => {
       let opts: Array<{ id: string; textAr: string; textEn: string; isCorrect: boolean }> = []
       const optionsRaw = qq.options
+      const mapOption = (o: Record<string, unknown>, i: number) => ({
+        id: String((o as { id?: string }).id ?? `opt-${idx}-${i}`),
+        textAr: String((o as { textAr?: string }).textAr || (o as { text?: string }).text || ""),
+        textEn: String((o as { textEn?: string }).textEn || (o as { text?: string }).text || ""),
+        isCorrect: Boolean((o as { isCorrect?: boolean }).isCorrect),
+      })
       if (Array.isArray(optionsRaw)) {
-        opts = optionsRaw.map((o: Record<string, unknown>, i: number) => ({
-          id: String((o as { id?: string }).id ?? `opt-${idx}-${i}`),
-          textAr: String((o as { textAr?: string }).textAr ?? (o as { text?: string }).text ?? ""),
-          textEn: String((o as { textEn?: string }).textEn ?? (o as { text?: string }).text ?? ""),
-          isCorrect: Boolean((o as { isCorrect?: boolean }).isCorrect),
-        }))
+        opts = optionsRaw.map(mapOption)
       } else if (typeof optionsRaw === "string") {
         try {
           const parsed = JSON.parse(optionsRaw) as Array<Record<string, unknown>>
-          opts = (parsed || []).map((o, i) => ({
-            id: String((o as { id?: string }).id ?? `opt-${idx}-${i}`),
-            textAr: String((o as { textAr?: string }).textAr ?? (o as { text?: string }).text ?? ""),
-            textEn: String((o as { textEn?: string }).textEn ?? (o as { text?: string }).text ?? ""),
-            isCorrect: Boolean((o as { isCorrect?: boolean }).isCorrect),
-          }))
+          opts = (parsed || []).map(mapOption)
         } catch {
           opts = []
         }
@@ -59,8 +55,8 @@ export default function LessonQuizPage() {
       return {
         id: String((qq as { id?: string }).id ?? `q-${idx}`),
         type: ((qq as { type?: string }).type ?? "mcq").replace("multiple_choice", "mcq") as "mcq" | "true_false" | "mcq_image" | "image_select",
-        questionAr: String((qq as { questionAr?: string }).questionAr ?? (qq as { question?: string }).question ?? ""),
-        questionEn: String((qq as { questionEn?: string }).questionEn ?? (qq as { question?: string }).question ?? ""),
+        questionAr: String((qq as { questionAr?: string }).questionAr || (qq as { question?: string }).question || ""),
+        questionEn: String((qq as { questionEn?: string }).questionEn || (qq as { question?: string }).question || ""),
         options: opts,
       }
     })

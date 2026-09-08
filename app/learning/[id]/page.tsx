@@ -288,24 +288,39 @@ export default function LearningPage() {
     { deps: [currentLessonId] }
   )
   const quizQuestions = useMemo(() => {
-    if (quizData && typeof quizData === "object" && "questions" in quizData) {
-      const q = (quizData as { questions?: Array<{ id?: string; type?: string; questionAr?: string; questionEn?: string; options?: Array<{ id?: string; textAr?: string; textEn?: string; isCorrect?: boolean }> }> }).questions
-      if (q && Array.isArray(q)) {
-        return q.map((qq) => ({
-          id: qq.id || "",
-          type: (qq.type || "mcq") as "mcq" | "true_false" | "mcq_image" | "image_select",
-          questionAr: qq.questionAr || "",
-          questionEn: qq.questionEn || "",
-          options: (qq.options || []).map((o) => ({
-            id: o.id || "",
-            textAr: o.textAr || "",
-            textEn: o.textEn || "",
-            isCorrect: o.isCorrect ?? false,
-          })),
-        }))
-      }
+    let raw: Array<Record<string, unknown>> = []
+    if (Array.isArray(quizData)) {
+      raw = quizData as Array<Record<string, unknown>>
+    } else if (quizData && typeof quizData === "object" && "questions" in quizData && Array.isArray((quizData as { questions?: unknown }).questions)) {
+      raw = (quizData as { questions: Array<Record<string, unknown>> }).questions
     }
-    return []
+    return raw.map((qq, idx) => {
+      let opts: Array<{ id: string; textAr: string; textEn: string; isCorrect: boolean }> = []
+      const optionsRaw = qq.options
+      const mapOption = (o: Record<string, unknown>, i: number) => ({
+        id: String((o as { id?: string }).id ?? `opt-${idx}-${i}`),
+        textAr: String((o as { textAr?: string }).textAr || (o as { text?: string }).text || ""),
+        textEn: String((o as { textEn?: string }).textEn || (o as { text?: string }).text || ""),
+        isCorrect: Boolean((o as { isCorrect?: boolean }).isCorrect),
+      })
+      if (Array.isArray(optionsRaw)) {
+        opts = optionsRaw.map(mapOption)
+      } else if (typeof optionsRaw === "string") {
+        try {
+          const parsed = JSON.parse(optionsRaw) as Array<Record<string, unknown>>
+          opts = (parsed || []).map(mapOption)
+        } catch {
+          opts = []
+        }
+      }
+      return {
+        id: String((qq as { id?: string }).id ?? `q-${idx}`),
+        type: ((qq as { type?: string }).type ?? "mcq").replace("multiple_choice", "mcq") as "mcq" | "true_false" | "mcq_image" | "image_select",
+        questionAr: String((qq as { questionAr?: string }).questionAr || (qq as { question?: string }).question || ""),
+        questionEn: String((qq as { questionEn?: string }).questionEn || (qq as { question?: string }).question || ""),
+        options: opts,
+      }
+    })
   }, [quizData, currentLessonId])
   const [activeTab, setActiveTab] = useState("description")
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -640,7 +655,7 @@ export default function LearningPage() {
                             isExpanded && "rotate-180"
                           )} />
                         </button>
-                        {section.id && (
+                        {section.id && (section.lessons.length > 0 || section.subsections.some((sub) => sub.lessons.length > 0)) && (
                           <Link
                             href={`/learning/${id}/leaderboard/${section.id}`}
                             className="mx-4 -mt-1 mb-1.5 flex items-center gap-1.5 text-[10px] font-medium text-amber-600 hover:text-amber-700"
