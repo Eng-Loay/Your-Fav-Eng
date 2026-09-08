@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   XCircle,
   Timer,
+  Volume2,
+  VolumeX,
 } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
 import { useStore } from "@/lib/store"
@@ -22,6 +24,7 @@ import { api } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { startHypeMusic, stopHypeMusic, resumeHypeMusicOnInteraction } from "@/lib/hype-sound"
 
 type Phase = "loading" | "no-game" | "lobby" | "playing" | "feedback" | "waiting" | "ended" | "error"
 
@@ -85,6 +88,24 @@ export default function LiveGamePage() {
   const wsRef = useRef<WebSocket | null>(null)
   const locked = useRef(false)
   const gameEndedRef = useRef(false)
+  const [musicOn, setMusicOn] = useState(true)
+
+  // Hype background music: play while in the lobby / actively playing so
+  // the game feels energetic; stop once results/end screens show.
+  useEffect(() => {
+    if (!musicOn) {
+      stopHypeMusic()
+      return
+    }
+    if (phase === "lobby" || phase === "playing" || phase === "feedback") {
+      startHypeMusic()
+      const cleanupInteraction = resumeHypeMusicOnInteraction()
+      return cleanupInteraction
+    }
+    stopHypeMusic()
+  }, [phase, musicOn])
+
+  useEffect(() => stopHypeMusic, [])
 
   const submitAnswer = useCallback((answer: any) => {
     if (locked.current || !question) return
@@ -262,6 +283,17 @@ export default function LiveGamePage() {
           <BackIcon className="h-3.5 w-3.5" />
           {locale === "ar" ? "رجوع للدرس" : "Back to lesson"}
         </Link>
+
+        {(phase === "lobby" || phase === "playing" || phase === "feedback") && (
+          <button
+            type="button"
+            onClick={() => setMusicOn((v) => !v)}
+            className="fixed end-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/70 backdrop-blur hover:text-white"
+            aria-label={locale === "ar" ? "كتم/تشغيل الموسيقى" : "Toggle music"}
+          >
+            {musicOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
+        )}
 
         {phase === "lobby" && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur">

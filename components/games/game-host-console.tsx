@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Play, Square, Trophy, Users, Loader2, Wifi, WifiOff, Flame } from "lucide-react"
+import { Play, Square, Trophy, Users, Loader2, Wifi, WifiOff, Flame, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { api } from "@/hooks/use-api"
 import { useStore } from "@/lib/store"
+import { startHypeMusic, stopHypeMusic, resumeHypeMusicOnInteraction } from "@/lib/hype-sound"
 
 const TIMER_OPTIONS = [15, 25, 40, 60, 90, 120]
 
@@ -46,6 +47,18 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
   const [timerSeconds, setTimerSeconds] = useState(30)
   const [totalQuestions, setTotalQuestions] = useState(0)
   const wsRef = useRef<WebSocket | null>(null)
+  const [musicOn, setMusicOn] = useState(true)
+
+  useEffect(() => {
+    if (!musicOn || (phase !== "lobby" && phase !== "live")) {
+      stopHypeMusic()
+      return
+    }
+    startHypeMusic()
+    return resumeHypeMusicOnInteraction()
+  }, [phase, musicOn])
+
+  useEffect(() => stopHypeMusic, [])
 
   useEffect(() => {
     let cancelled = false
@@ -183,10 +196,22 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200/60">
         <span className="text-sm font-medium text-slate-600">حالة الاتصال</span>
-        <span className={`flex items-center gap-1.5 text-xs font-bold ${connected ? "text-emerald-600" : "text-red-500"}`}>
-          {connected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-          {connected ? "متصل" : "غير متصل"}
-        </span>
+        <div className="flex items-center gap-3">
+          {(phase === "lobby" || phase === "live") && (
+            <button
+              type="button"
+              onClick={() => setMusicOn((v) => !v)}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:text-slate-600"
+              aria-label="كتم/تشغيل الموسيقى"
+            >
+              {musicOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          <span className={`flex items-center gap-1.5 text-xs font-bold ${connected ? "text-emerald-600" : "text-red-500"}`}>
+            {connected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+            {connected ? "متصل" : "غير متصل"}
+          </span>
+        </div>
       </div>
 
       {phase === "lobby" && (
