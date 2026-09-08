@@ -953,7 +953,7 @@ export default function LearningPage() {
                       {locale === "ar" ? "عن هذا الدرس" : "About This Lesson"}
                     </h3>
                     <p className="text-sm leading-relaxed text-[#64748B] whitespace-pre-wrap">
-                      {currentLesson.content || (locale === "ar" ? course.descriptionAr : course.descriptionEn) || (locale === "ar" ? "لا يوجد وصف" : "No description available")}
+                      {(currentLesson.type !== "QUIZ" && currentLesson.content) || (locale === "ar" ? course.descriptionAr : course.descriptionEn) || (locale === "ar" ? "لا يوجد وصف" : "No description available")}
                     </p>
                   </div>
 
