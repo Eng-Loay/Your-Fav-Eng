@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { m } from "framer-motion"
 import { User, Bell, Lock, Globe, Save, Camera, CreditCard, Percent } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
-import { safeStr } from "@/lib/utils"
+import { safeStr, compressImageFile } from "@/lib/utils"
 import { useStore } from "@/lib/store"
 import { useApi, api } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import Image from "next/image"
 
 export default function TeacherSettingsPage() {
   const { locale, dir } = useI18n()
-  const { user, refreshUser } = useStore()
+  const { user, refreshUser, showToast } = useStore()
   const isRTL = dir === "rtl"
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -49,11 +49,21 @@ export default function TeacherSettingsPage() {
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    e.target.value = ""
     if (!file) return
     setAvatarPreview(URL.createObjectURL(file))
-    const res = await api.uploadAvatar(file)
-    if (res.success && res.data?.avatar) {
-      refreshUser?.()
+    try {
+      const compressed = await compressImageFile(file)
+      const res = await api.uploadAvatar(compressed)
+      if (res.success && res.data?.avatar) {
+        await refreshUser?.()
+      } else {
+        setAvatarPreview(null)
+        showToast?.(res.message || (locale === "ar" ? "فشل رفع الصورة" : "Failed to upload photo"), "error")
+      }
+    } catch {
+      setAvatarPreview(null)
+      showToast?.(locale === "ar" ? "حدث خطأ أثناء رفع الصورة" : "Something went wrong uploading the photo", "error")
     }
   }
 

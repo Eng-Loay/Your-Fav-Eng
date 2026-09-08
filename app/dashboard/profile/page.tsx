@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { m } from "framer-motion"
 import { Camera, Check, Lock, User as UserIcon } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
-import { safeStr } from "@/lib/utils"
+import { safeStr, compressImageFile } from "@/lib/utils"
 import { useStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,7 +68,8 @@ export default function ProfilePage() {
     setAvatarPreview(previewUrl)
     setUploadingAvatar(true)
     try {
-      const res = await api.uploadAvatar(file)
+      const compressed = await compressImageFile(file)
+      const res = await api.uploadAvatar(compressed)
       if (res.success) {
         await refreshUser()
         showToast(locale === "ar" ? "تم تحديث الصورة الشخصية" : "Profile photo updated", "success")
