@@ -1,0 +1,1 @@
+// للنشر: sed 's/sqlite/postgresql/' schema.prisma > schema.prisma.tmp && mv schema.prisma.tmp schema.prisma

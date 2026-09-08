@@ -1,0 +1,50 @@
+/* Scoped blue theme for admin dashboard content */
+.admin-theme {
+  --color-primary: #1345d6;
+  --color-primary-hover: #0b2f8c;
+  --color-primary-rgb: 19, 69, 214;
+  --primary: 225 80% 46%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 225 80% 46%;
+  --chart-1: 225 80% 46%;
+  --chart-2: 225 70% 53%;
+  --chart-3: 225 60% 60%;
+  --chart-4: 225 50% 68%;
+  --chart-5: 225 40% 76%;
+}
+
+.admin-theme .admin-header {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom-color: rgba(19, 69, 214, 0.1);
+}
+
+.admin-theme .admin-search {
+  background: #e8eefa;
+}
+
+.admin-theme .admin-search:focus-within {
+  box-shadow: 0 0 0 2px rgba(19, 69, 214, 0.15);
+}
+
+/* Sidebar scroll — no white gutter between nav and content */
+.admin-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}

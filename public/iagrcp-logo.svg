@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="24" fill="#0F3D5C"/>
+  <circle cx="100" cy="88" r="42" stroke="#C4A35A" stroke-width="3" fill="none"/>
+  <path d="M100 58 L108 78 L130 78 L112 90 L118 110 L100 98 L82 110 L88 90 L70 78 L92 78 Z" fill="#C4A35A"/>
+  <text x="100" y="155" text-anchor="middle" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#ffffff">IAGRCP</text>
+  <text x="100" y="175" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#C4A35A" letter-spacing="1">GRC PROFESSIONALS</text>
+</svg>

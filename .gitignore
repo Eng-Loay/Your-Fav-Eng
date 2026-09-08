@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+
+# Build output
+.next/
+out/
+build/
+dist/
+backend/dist/
+tsconfig.tsbuildinfo
+
+# Env files (contain secrets)
+.env
+.env.local
+.env.production
+.env*.local
+
+# Databases
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+*.db
+*.db-journal
+
+# Uploaded / generated content
+backend/uploads/
+.video-frames/
+
+# Claude session state
+.claude/scheduled_tasks.lock
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
