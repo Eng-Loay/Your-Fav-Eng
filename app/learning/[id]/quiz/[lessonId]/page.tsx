@@ -59,7 +59,7 @@ export default function LessonQuizPage() {
       return {
         id: String((qq as { id?: string }).id ?? `q-${idx}`),
         type: ((qq as { type?: string }).type ?? "mcq").replace("multiple_choice", "mcq") as "mcq" | "true_false" | "mcq_image" | "image_select",
-        questionAr: String((qq as { questionAr?: string }).questionAr ?? ""),
+        questionAr: String((qq as { questionAr?: string }).questionAr ?? (qq as { question?: string }).question ?? ""),
         questionEn: String((qq as { questionEn?: string }).questionEn ?? (qq as { question?: string }).question ?? ""),
         options: opts,
       }
