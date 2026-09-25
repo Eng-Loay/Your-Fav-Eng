@@ -210,6 +210,9 @@ class ApiClient {
         }
       }
 
+      if (res.status === 413) {
+        return { success: false, message: 'الملف كبير جدًا للرفع (الحد الأقصى حوالي 4.5MB). قلّل حجمه أو الصق رابط الملف.' };
+      }
       const data = await res.json();
       // Flatten {id, name} objects to strings to prevent React "Objects are not valid as React child"
       if (data && typeof data === 'object') {
@@ -1631,7 +1634,7 @@ class ApiClient {
   }
 
   async uploadAdminFile(formData: FormData) {
-    return this.request('/admin/files', { method: 'POST', body: formData, isFormData: true });
+    return this.request('/admin/files', { method: 'POST', body: formData, isFormData: true, timeoutMs: 300000 });
   }
 
   async getAdminReviews(params?: { status?: string; page?: number; limit?: number }) {
