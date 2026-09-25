@@ -2,16 +2,17 @@
 
 import { useState } from "react"
 import { m } from "framer-motion"
-import { FileText, ZoomIn, ZoomOut, Maximize, Minimize, Loader2 } from "lucide-react"
+import { FileText, Download, Maximize, Minimize, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface PDFViewerProps {
   src: string
   title?: string
   className?: string
+  downloadUrl?: string
 }
 
-export default function PDFViewer({ src, title, className }: PDFViewerProps) {
+export default function PDFViewer({ src, title, className, downloadUrl }: PDFViewerProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -50,6 +51,18 @@ export default function PDFViewer({ src, title, className }: PDFViewerProps) {
           )}
         </div>
         <div className="flex items-center gap-1">
+          {downloadUrl && (
+            <a
+              href={downloadUrl}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-[#64748B] transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              <Download className="h-4 w-4" />
+              تحميل
+            </a>
+          )}
           <button
             onClick={toggleFullscreen}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] transition-colors hover:bg-primary/10 hover:text-primary"

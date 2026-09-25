@@ -201,6 +201,7 @@ export default function LearningPage() {
       videoUrl?: string
       content?: string
       pdfUrl?: string
+      allowDownload?: boolean
       description?: string
       attachments?: Array<{ id?: string; name?: string; url?: string; type?: string; size?: number }>
     }
@@ -224,6 +225,7 @@ export default function LearningPage() {
       videoUrl: l.videoUrl ?? null,
       content: l.content ?? l.description ?? "",
       pdfUrl: l.pdfUrl ?? null,
+      allowDownload: l.allowDownload ?? false,
       attachments: (l.attachments || []).map((a) => ({
         id: a.id ?? "",
         name: a.name ?? "",
@@ -824,6 +826,7 @@ export default function LearningPage() {
               <PDFViewer
                 src={getFullUrl(currentLesson.pdfUrl)}
                 title={lessonTitle}
+                downloadUrl={currentLesson.allowDownload ? getFullUrl(currentLesson.pdfUrl) : undefined}
               />
             </div>
           ) : (
@@ -1022,6 +1025,7 @@ export default function LearningPage() {
                     <PDFViewer
                       src={getFullUrl(currentLesson.pdfUrl)}
                       title={locale === "ar" ? "المادة التعليمية للدورة" : "Course Study Material"}
+                      downloadUrl={currentLesson.allowDownload ? getFullUrl(currentLesson.pdfUrl) : undefined}
                     />
                   ) : (
                     <div className="rounded-2xl border border-[#E2E8F0] bg-white p-8 text-center">

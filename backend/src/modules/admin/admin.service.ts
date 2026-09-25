@@ -3320,6 +3320,7 @@ export const adminService = {
       type?: string;
       duration?: number;
       isFree?: boolean;
+      allowDownload?: boolean;
       videoUrl?: string;
       content?: string;
       meetingProvider?: string;
@@ -3363,6 +3364,7 @@ export const adminService = {
         type,
         duration: les.duration ?? 0,
         isFree: les.isFree ?? false,
+        allowDownload: les.allowDownload ?? false,
         videoUrl: videoUrl ?? null,
         pdfUrl: pdfUrl ?? null,
         content: les.content ?? null,
@@ -3427,6 +3429,7 @@ export const adminService = {
         type?: string;
         duration?: number;
         isFree?: boolean;
+        allowDownload?: boolean;
         videoUrl?: string;
         content?: string;
         meetingProvider?: string;
@@ -3445,6 +3448,7 @@ export const adminService = {
           type?: string;
           duration?: number;
           isFree?: boolean;
+          allowDownload?: boolean;
           videoUrl?: string;
           content?: string;
           meetingProvider?: string;

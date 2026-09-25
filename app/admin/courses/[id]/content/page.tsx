@@ -79,6 +79,7 @@ interface Lesson {
   attachments: Attachment[]
   isPublished: boolean
   isFree: boolean
+  allowDownload: boolean
   price: number
   meetingProvider?: string
   meetingUrl?: string
@@ -197,6 +198,7 @@ const emptyLesson = (): Lesson => ({
   attachments: [],
   isPublished: true,
   isFree: false,
+  allowDownload: false,
   price: 0,
 })
 
@@ -238,6 +240,7 @@ function mapApiLesson(l: any): Lesson {
     })),
     isPublished: true,
     isFree: l.isFree ?? false,
+    allowDownload: l.allowDownload ?? false,
     price: 0,
   }
 }
@@ -585,6 +588,7 @@ export default function ContentBuilderPage() {
     type: l.type === "live" ? "LIVE_SESSION" : l.type.toUpperCase(),
     duration: l.duration,
     isFree: l.isFree,
+    allowDownload: l.allowDownload,
     videoUrl: l.type !== "live" ? (l.videoSource || undefined) : undefined,
     content: l.content || undefined,
     meetingProvider: l.type === "live" ? (l.meetingProvider || "zoom") : undefined,
@@ -1601,6 +1605,19 @@ export default function ContentBuilderPage() {
                       className="data-[state=checked]:bg-primary"
                     />
                     <span className="text-sm text-slate-700">درس مجاني</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <Switch
+                      checked={editingLesson.lesson.allowDownload}
+                      onCheckedChange={(v) =>
+                        setEditingLesson({
+                          ...editingLesson,
+                          lesson: { ...editingLesson.lesson, allowDownload: v },
+                        })
+                      }
+                      className="data-[state=checked]:bg-amber-500"
+                    />
+                    <span className="text-sm text-slate-700">السماح للطلاب بتحميل المادة</span>
                   </div>
                 </div>
               </div>

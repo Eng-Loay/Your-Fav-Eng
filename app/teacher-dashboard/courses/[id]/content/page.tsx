@@ -162,6 +162,7 @@ interface Lesson {
   attachments: Attachment[]
   isPublished: boolean
   isFree: boolean
+  allowDownload: boolean
   price: number
 }
 
@@ -192,6 +193,7 @@ const emptyLesson = (): Lesson => ({
   attachments: [],
   isPublished: true,
   isFree: false,
+  allowDownload: false,
   price: 0,
 })
 
@@ -224,6 +226,7 @@ function mapApiLesson(l: any): Lesson {
     attachments: [],
     isPublished: true,
     isFree: l.isFree ?? false,
+    allowDownload: l.allowDownload ?? false,
     price: 0,
   }
 }
@@ -599,6 +602,7 @@ export default function TeacherContentBuilderPage() {
     type: l.type.toUpperCase(),
     duration: l.duration,
     isFree: l.isFree,
+    allowDownload: l.allowDownload,
     videoUrl: l.videoSource || undefined,
     content: l.content || undefined,
   })
@@ -1400,6 +1404,19 @@ export default function TeacherContentBuilderPage() {
                       className="data-[state=checked]:bg-blue-500"
                     />
                     <span className="text-sm text-slate-700">درس مجاني</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-1">
+                    <Switch
+                      checked={editingLesson.lesson.allowDownload}
+                      onCheckedChange={(v) =>
+                        setEditingLesson({
+                          ...editingLesson,
+                          lesson: { ...editingLesson.lesson, allowDownload: v },
+                        })
+                      }
+                      className="data-[state=checked]:bg-amber-500"
+                    />
+                    <span className="text-sm text-slate-700">السماح للطلاب بتحميل المادة</span>
                   </div>
                 </div>
               </div>

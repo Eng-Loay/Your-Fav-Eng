@@ -237,6 +237,7 @@ model Lesson {
   pdfUrl          String?
   isFree          Boolean   @default(false)
   isPreview       Boolean   @default(false)
+  allowDownload   Boolean   @default(false)
   meetingProvider String?
   meetingUrl      String?
   scheduledAt     DateTime?
