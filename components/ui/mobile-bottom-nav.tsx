@@ -7,7 +7,7 @@ import { m } from "framer-motion"
 import { useI18n } from "@/lib/i18n"
 import { useMarketingSurface } from "@/components/providers/MarketingSurfaceProvider"
 import { useStore } from "@/lib/store"
-import { cn } from "@/lib/utils"
+import { cn, getDashboardPath, getMyCoursesPath } from "@/lib/utils"
 
 function GridIcon({ className, active }: { className?: string; active?: boolean }) {
   return (
@@ -126,9 +126,9 @@ export function MobileBottomNav() {
 
   const getHref = (item: (typeof navItems)[0]) => {
     if ((item.key === "account" || item.key === "myCourses") && (!mounted || !isLoggedIn)) return "/login"
-    if (mounted && isLoggedIn && user?.role === "parent") {
-      if (item.key === "account") return "/parent-dashboard"
-      if (item.key === "myCourses") return "/parent-dashboard/children"
+    if (mounted && isLoggedIn && user?.role && user.role !== "student") {
+      if (item.key === "account") return getDashboardPath(user.role)
+      if (item.key === "myCourses") return getMyCoursesPath(user.role)
     }
     return item.href
   }
@@ -136,10 +136,15 @@ export function MobileBottomNav() {
   const isActive = (item: (typeof navItems)[0]) => {
     if (item.key === "home") return pathname === "/"
     if (item.key === "account") {
-      if (user?.role === "parent") return pathname === "/parent-dashboard" || pathname?.startsWith("/parent-dashboard")
+      if (user?.role && user.role !== "student") {
+        const base = getDashboardPath(user.role)
+        return pathname === base || pathname?.startsWith(`${base}/`)
+      }
       return pathname === "/dashboard" || pathname === "/dashboard/profile" || pathname === "/dashboard/billing"
     }
-    if (item.key === "myCourses" && user?.role === "parent") return pathname?.startsWith("/parent-dashboard")
+    if (item.key === "myCourses" && user?.role && user.role !== "student") {
+      return pathname?.startsWith(getMyCoursesPath(user.role)) ?? false
+    }
     if (item.key === "services") return pathname?.startsWith("/services")
     return item.matchPaths.some((p) => pathname?.startsWith(p))
   }

@@ -28,6 +28,7 @@ export function getDashboardPath(role?: string): string {
 /** Get "My Courses" / courses list path based on role */
 export function getMyCoursesPath(role?: string): string {
   switch (role?.toLowerCase()) {
+    case "admin": return "/admin/courses"
     case "teacher": return "/teacher-dashboard/classes"
     case "parent": return "/parent-dashboard/children"
     default: return "/dashboard/courses"
