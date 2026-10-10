@@ -3364,7 +3364,7 @@ export const adminService = {
         type,
         duration: les.duration ?? 0,
         isFree: les.isFree ?? false,
-        allowDownload: les.allowDownload ?? false,
+        allowDownload: les.allowDownload ?? type === 'PDF',
         videoUrl: videoUrl ?? null,
         pdfUrl: pdfUrl ?? null,
         content: les.content ?? null,

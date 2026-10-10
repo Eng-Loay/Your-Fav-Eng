@@ -198,7 +198,7 @@ const emptyLesson = (): Lesson => ({
   attachments: [],
   isPublished: true,
   isFree: false,
-  allowDownload: false,
+  allowDownload: true,
   price: 0,
 })
 
@@ -1617,7 +1617,7 @@ export default function ContentBuilderPage() {
                       }
                       className="data-[state=checked]:bg-amber-500"
                     />
-                    <span className="text-sm text-slate-700">السماح للطلاب بالتحميل (المادة / الواجب)</span>
+                    <span className="text-sm text-slate-700">السماح للطلاب بتحميل المادة</span>
                   </div>
                 </div>
               </div>

@@ -16,6 +16,27 @@ export default function PDFViewer({ src, title, className, downloadUrl }: PDFVie
   const [isLoading, setIsLoading] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
+  // The `download` attribute is ignored for cross-origin files, so fetch the file and save it as a blob;
+  // if the host blocks that, fall back to opening the file in a new tab.
+  const handleDownload = async () => {
+    if (!downloadUrl) return
+    try {
+      const res = await fetch(downloadUrl)
+      if (!res.ok) throw new Error("download failed")
+      const blob = await res.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = objectUrl
+      link.download = `${(title ?? "document").replace(/[\\/:*?"<>|]+/g, "-").trim() || "document"}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    } catch {
+      window.open(downloadUrl, "_blank", "noopener,noreferrer")
+    }
+  }
+
   const toggleFullscreen = () => {
     const el = document.getElementById("pdf-viewer-container")
     if (!el) return
@@ -52,16 +73,14 @@ export default function PDFViewer({ src, title, className, downloadUrl }: PDFVie
         </div>
         <div className="flex items-center gap-1">
           {downloadUrl && (
-            <a
-              href={downloadUrl}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={handleDownload}
               className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-[#64748B] transition-colors hover:bg-primary/10 hover:text-primary"
             >
               <Download className="h-4 w-4" />
               تحميل
-            </a>
+            </button>
           )}
           <button
             onClick={toggleFullscreen}
