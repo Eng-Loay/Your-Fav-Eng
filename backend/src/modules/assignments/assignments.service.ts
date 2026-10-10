@@ -57,6 +57,7 @@ export const assignmentsService = {
             include: {
               course: { select: { id: true, title: true, titleAr: true } },
               instructor: { select: { id: true, name: true } },
+              lesson: { select: { allowDownload: true } },
               submissions: { where: { studentId }, take: 1 },
             },
           })
@@ -99,6 +100,7 @@ export const assignmentsService = {
         dueDate: a.dueDate,
         totalPoints: a.totalPoints,
         gradingType: a.gradingType,
+        allowDownload: a.lesson?.allowDownload ?? false,
         questions,
         mySubmission: a.submissions[0] ?? null,
         instructor: a.instructor?.name,

@@ -88,12 +88,22 @@ async function callGemini(body: Record<string, unknown>): Promise<any> {
     lastMessage = result.message;
   }
 
+  console.error('[gemini] all keys failed:', lastMessage);
   throw new Error(lastMessage || 'Gemini request failed');
 }
 
 function extractText(data: any): string {
-  const parts = data?.candidates?.[0]?.content?.parts as Array<{ text?: string }> | undefined;
+  const candidate = data?.candidates?.[0];
+  if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+    console.error('[gemini] non-STOP finishReason:', candidate.finishReason);
+  }
+  const parts = candidate?.content?.parts as Array<{ text?: string }> | undefined;
   return (parts || []).map((p) => p.text || '').join('').trim();
+}
+
+function stripJsonFence(text: string): string {
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return match ? match[1] : text;
 }
 
 /** Chat reply grounded in a system instruction (lesson context) plus prior turns. */
@@ -117,8 +127,14 @@ export async function geminiJson<T>(systemInstruction: string, prompt: string, r
       responseMimeType: 'application/json',
       responseSchema,
       thinkingConfig: { thinkingLevel: 'LOW' },
+      maxOutputTokens: 8192,
     },
   });
   const text = extractText(data);
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch (err) {
+    console.error('[gemini] failed to parse JSON response:', text.slice(0, 2000));
+    return JSON.parse(stripJsonFence(text)) as T;
+  }
 }

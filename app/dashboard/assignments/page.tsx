@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { m } from "framer-motion"
-import { FileText, BookOpen, GraduationCap, Calendar, Send, CheckCircle2 } from "lucide-react"
+import { FileText, BookOpen, GraduationCap, Calendar, Send, CheckCircle2, Download } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
 import { useStore } from "@/lib/store"
 import { useApi, api } from "@/hooks/use-api"
@@ -20,6 +20,31 @@ export default function StudentAssignmentsPage() {
     const r = res as { data?: any[] } | any[] | undefined
     return Array.isArray(r) ? r : (r?.data ?? [])
   })()
+
+  // Opens a print-friendly sheet (questions only, no answers); the browser's "Save as PDF" produces the download.
+  const downloadHomework = (a: any) => {
+    const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    const title = locale === "ar" && a.titleAr ? a.titleAr : a.title
+    const body = (a.questions ?? [])
+      .map((q: any, i: number) => {
+        const opts = (q.options ?? [])
+          .map((o: any, oi: number) => `<li>${String.fromCharCode(65 + oi)}) ${esc(o.text)}</li>`)
+          .join("")
+        return `<div class="q"><p><b>${i + 1}.</b> ${esc(q.question)}</p><ul>${opts}</ul></div>`
+      })
+      .join("")
+    const win = window.open("", "_blank")
+    if (!win) {
+      showToast(locale === "ar" ? "اسمح بالنوافذ المنبثقة للتحميل" : "Allow pop-ups to download", "error")
+      return
+    }
+    win.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;line-height:1.6}h1{font-size:22px}.meta{color:#555;font-size:13px;margin-bottom:16px}.q{margin:16px 0;page-break-inside:avoid}ul{list-style:none;padding:0 16px}li{margin:4px 0}</style></head><body dir="auto"><h1>${esc(title)}</h1><div class="meta">${esc(a.context ?? "")} — ${a.totalPoints} pts</div>${a.description ? `<p>${esc(a.description)}</p>` : ""}${body}</body></html>`
+    )
+    win.document.close()
+    win.focus()
+    win.print()
+  }
 
   const setAnswer = (assignmentId: string, questionId: string, value: string | string[]) => {
     setAutoAnswers((prev) => ({
@@ -120,6 +145,15 @@ export default function StudentAssignmentsPage() {
                           {a.dueDate ? new Date(a.dueDate).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US") : "—"}
                         </span>
                         <span>{a.totalPoints} {locale === "ar" ? "درجة" : "pts"}</span>
+                        {a.allowDownload && a.type === "course" && (a.questions?.length ?? 0) > 0 && (
+                          <button
+                            onClick={() => downloadHomework(a)}
+                            className="flex items-center gap-1 text-primary font-semibold hover:underline"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            {locale === "ar" ? "تحميل الواجب" : "Download homework"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

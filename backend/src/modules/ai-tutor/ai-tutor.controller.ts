@@ -45,7 +45,8 @@ export const aiTutorController = {
       const result = await aiTutorService.generateQuiz(lessonId, req.user.id, count);
       if (!result.ok) return mapError(res, result.error);
       return ApiResponse.success(res, result.data);
-    } catch {
+    } catch (err) {
+      console.error('[ai-tutor] generateQuiz controller error:', err);
       return ApiResponse.error(res, 'Failed to generate quiz', 500);
     }
   },

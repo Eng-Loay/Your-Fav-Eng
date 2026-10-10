@@ -92,6 +92,7 @@ export const aiTutorService = {
     try {
       reply = await geminiChat(systemInstruction, [...history, { role: 'user', text: message }]);
     } catch (err) {
+      console.error('[ai-tutor] chat failed:', err);
       reply = 'عذرًا، حصل خطأ مؤقت في المساعد الذكي. جرّب تاني بعد شوية.';
     }
 
@@ -140,6 +141,7 @@ export const aiTutorService = {
       );
       return { ok: true, data: questions };
     } catch (err) {
+      console.error('[ai-tutor] generateQuiz failed:', err);
       return { ok: false, error: 'generation_failed' };
     }
   },

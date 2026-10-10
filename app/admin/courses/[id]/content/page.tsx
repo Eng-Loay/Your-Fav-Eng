@@ -1617,7 +1617,7 @@ export default function ContentBuilderPage() {
                       }
                       className="data-[state=checked]:bg-amber-500"
                     />
-                    <span className="text-sm text-slate-700">السماح للطلاب بتحميل المادة</span>
+                    <span className="text-sm text-slate-700">السماح للطلاب بالتحميل (المادة / الواجب)</span>
                   </div>
                 </div>
               </div>
