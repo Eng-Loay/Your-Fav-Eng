@@ -57,7 +57,6 @@ export const assignmentsService = {
             include: {
               course: { select: { id: true, title: true, titleAr: true } },
               instructor: { select: { id: true, name: true } },
-              lesson: { select: { allowDownload: true } },
               submissions: { where: { studentId }, take: 1 },
             },
           })
@@ -76,15 +75,26 @@ export const assignmentsService = {
 
     const courseItems = courseAssignments.map((a) => {
       let questions: Array<{ id: string; type: string; question: string; options: Array<{ id: string; text: string }> }> = [];
+      let review: Array<{ id: string; type: string; question: string; options: Array<{ id: string; text: string; isCorrect: boolean }> }> | null = null;
       if (a.gradingType === 'AUTO' && a.content) {
         try {
           const parsed = JSON.parse(a.content) as { questions?: Array<{ id: string; type: string; question: string; options: Array<{ id: string; text: string; isCorrect: boolean }> }> };
-          questions = (parsed.questions ?? []).map((q) => ({
+          const full = parsed.questions ?? [];
+          questions = full.map((q) => ({
             id: q.id,
             type: q.type,
             question: q.question,
             options: q.options.map((o) => ({ id: o.id, text: o.text })),
           }));
+          // Correct answers are only revealed once this student has actually submitted.
+          if (a.submissions[0]?.content) {
+            review = full.map((q) => ({
+              id: q.id,
+              type: q.type,
+              question: q.question,
+              options: q.options.map((o) => ({ id: o.id, text: o.text, isCorrect: !!o.isCorrect })),
+            }));
+          }
         } catch {
           questions = [];
         }
@@ -100,8 +110,8 @@ export const assignmentsService = {
         dueDate: a.dueDate,
         totalPoints: a.totalPoints,
         gradingType: a.gradingType,
-        allowDownload: a.lesson?.allowDownload ?? false,
         questions,
+        review,
         mySubmission: a.submissions[0] ?? null,
         instructor: a.instructor?.name,
       };
@@ -145,6 +155,13 @@ export const assignmentsService = {
     if (!enrolled) return null;
 
     if (assignment.gradingType === 'AUTO') {
+      // One attempt only: correct answers are shown after submitting, so a second attempt would be trivial.
+      const previous = await prisma.courseAssignmentSubmission.findUnique({
+        where: { assignmentId_studentId: { assignmentId, studentId } },
+        select: { content: true },
+      });
+      if (previous?.content) return { alreadySubmitted: true as const };
+
       let questions: AutoGradeQuestion[] = [];
       try {
         questions = assignment.content ? (JSON.parse(assignment.content).questions ?? []) : [];

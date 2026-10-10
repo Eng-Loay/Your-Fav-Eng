@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { m } from "framer-motion"
-import { FileText, BookOpen, GraduationCap, Calendar, Send, CheckCircle2, Download } from "lucide-react"
+import { FileText, BookOpen, GraduationCap, Calendar, Send, CheckCircle2 } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
 import { useStore } from "@/lib/store"
 import { useApi, api } from "@/hooks/use-api"
@@ -20,31 +20,6 @@ export default function StudentAssignmentsPage() {
     const r = res as { data?: any[] } | any[] | undefined
     return Array.isArray(r) ? r : (r?.data ?? [])
   })()
-
-  // Opens a print-friendly sheet (questions only, no answers); the browser's "Save as PDF" produces the download.
-  const downloadHomework = (a: any) => {
-    const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    const title = locale === "ar" && a.titleAr ? a.titleAr : a.title
-    const body = (a.questions ?? [])
-      .map((q: any, i: number) => {
-        const opts = (q.options ?? [])
-          .map((o: any, oi: number) => `<li>${String.fromCharCode(65 + oi)}) ${esc(o.text)}</li>`)
-          .join("")
-        return `<div class="q"><p><b>${i + 1}.</b> ${esc(q.question)}</p><ul>${opts}</ul></div>`
-      })
-      .join("")
-    const win = window.open("", "_blank")
-    if (!win) {
-      showToast(locale === "ar" ? "اسمح بالنوافذ المنبثقة للتحميل" : "Allow pop-ups to download", "error")
-      return
-    }
-    win.document.write(
-      `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;max-width:800px;margin:24px auto;padding:0 16px;line-height:1.6}h1{font-size:22px}.meta{color:#555;font-size:13px;margin-bottom:16px}.q{margin:16px 0;page-break-inside:avoid}ul{list-style:none;padding:0 16px}li{margin:4px 0}</style></head><body dir="auto"><h1>${esc(title)}</h1><div class="meta">${esc(a.context ?? "")} — ${a.totalPoints} pts</div>${a.description ? `<p>${esc(a.description)}</p>` : ""}${body}</body></html>`
-    )
-    win.document.close()
-    win.focus()
-    win.print()
-  }
 
   const setAnswer = (assignmentId: string, questionId: string, value: string | string[]) => {
     setAutoAnswers((prev) => ({
@@ -145,15 +120,6 @@ export default function StudentAssignmentsPage() {
                           {a.dueDate ? new Date(a.dueDate).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US") : "—"}
                         </span>
                         <span>{a.totalPoints} {locale === "ar" ? "درجة" : "pts"}</span>
-                        {a.allowDownload && a.type === "course" && (a.questions?.length ?? 0) > 0 && (
-                          <button
-                            onClick={() => downloadHomework(a)}
-                            className="flex items-center gap-1 text-primary font-semibold hover:underline"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            {locale === "ar" ? "تحميل الواجب" : "Download homework"}
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -247,6 +213,59 @@ export default function StudentAssignmentsPage() {
                     </Button>
                   </div>
                 ) : null}
+                {submitted && a.type === "course" && a.gradingType === "AUTO" && Array.isArray(a.review) && a.review.length > 0 && (() => {
+                  let chosen: Record<string, string | string[]> = {}
+                  try {
+                    chosen = JSON.parse(submitted.content ?? "{}")
+                  } catch {
+                    chosen = {}
+                  }
+                  const toArr = (v: string | string[] | undefined) => (Array.isArray(v) ? v : v ? [v] : [])
+                  return (
+                    <details className="mt-4 pt-4 border-t border-[#E2E8F0]/60 group">
+                      <summary className="cursor-pointer text-sm font-semibold text-primary select-none">
+                        {locale === "ar" ? "مراجعة إجاباتك والإجابات الصحيحة" : "Review your answers and the correct answers"}
+                      </summary>
+                      <div className="mt-4 space-y-5">
+                        {a.review.map((q: any, qi: number) => {
+                          const picked = toArr(chosen[q.id])
+                          const correctIds = (q.options ?? []).filter((o: any) => o.isCorrect).map((o: any) => o.id)
+                          const gotIt = picked.length === correctIds.length && picked.every((id) => correctIds.includes(id))
+                          return (
+                            <div key={q.id} className="space-y-2">
+                              <p className="text-sm font-semibold text-[#0F172A]">
+                                {qi + 1}. {q.question}{" "}
+                                <span className={gotIt ? "text-emerald-600" : "text-red-500"}>
+                                  {gotIt ? "✓" : "✗"}
+                                </span>
+                              </p>
+                              <div className="space-y-1.5">
+                                {(q.options ?? []).map((opt: any) => {
+                                  const isPicked = picked.includes(opt.id)
+                                  const cls = opt.isCorrect
+                                    ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                                    : isPicked
+                                      ? "border-red-300 bg-red-50 text-red-700"
+                                      : "border-[#E2E8F0] text-[#64748B]"
+                                  return (
+                                    <div key={opt.id} className={`flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl border text-sm ${cls}`}>
+                                      <span>{opt.text}</span>
+                                      <span className="text-[11px] font-semibold shrink-0">
+                                        {opt.isCorrect && (locale === "ar" ? "الإجابة الصحيحة" : "Correct")}
+                                        {isPicked && !opt.isCorrect && (locale === "ar" ? "إجابتك" : "Your answer")}
+                                        {isPicked && opt.isCorrect && (locale === "ar" ? " • إجابتك" : " • Your answer")}
+                                      </span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </details>
+                  )
+                })()}
               </m.div>
             )
           })}

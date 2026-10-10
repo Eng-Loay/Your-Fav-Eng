@@ -27,6 +27,7 @@ export const assignmentsController = {
         req.body
       );
       if (!submission) return ApiResponse.forbidden(res, 'Not enrolled or assignment not found');
+      if ('alreadySubmitted' in submission) return ApiResponse.error(res, 'You have already submitted this assignment', 409);
       return ApiResponse.created(res, submission, 'Submission saved');
     } catch (err) {
       return ApiResponse.error(res, 'Failed to submit', 500);
