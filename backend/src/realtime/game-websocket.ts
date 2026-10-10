@@ -212,7 +212,26 @@ export function initGameWebSocketServer(server: Server) {
 
       socket.on('close', () => removeFromRoom(socket));
 
-      if (role === 'host') {
+      if (role === 'host' && session.status === 'ACTIVE') {
+        // Host refreshed mid-game: hand back the live board instead of dropping them into the lobby.
+        const [detail, totalQuestions] = await Promise.all([
+          gamesService.getSessionDetail(sessionId),
+          prisma.gameQuestion.count({ where: { gameId: session.gameId } }),
+        ]);
+        const participants = (detail?.participants ?? [])
+          .slice()
+          .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime())
+          .map((p) => ({
+            userId: p.userId,
+            name: p.user.name,
+            avatar: p.user.avatar,
+            joinedAt: p.joinedAt,
+            score: p.score,
+            streak: p.streak,
+            completed: p.completed,
+          }));
+        send(socket, 'host:resume', { timerSeconds: session.timerSeconds, totalQuestions, participants });
+      } else if (role === 'host') {
         await broadcastLobbyUpdate(sessionId);
       } else if (session.status === 'LOBBY') {
         await broadcastLobbyUpdate(sessionId);

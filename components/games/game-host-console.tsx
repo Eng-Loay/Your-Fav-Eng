@@ -47,6 +47,7 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
   const [timerSeconds, setTimerSeconds] = useState(30)
   const [totalQuestions, setTotalQuestions] = useState(0)
   const wsRef = useRef<WebSocket | null>(null)
+  const resumingRef = useRef(false)
   const [musicOn, setMusicOn] = useState(true)
 
   useEffect(() => {
@@ -76,6 +77,8 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
 
         const activeRes = await api.getActiveGameSession(lessonId)
         let sid: string | null = activeRes.success ? activeRes.data?.id ?? null : null
+        // A session that's already running is restored from the server's `host:resume` snapshot, not the lobby.
+        resumingRef.current = activeRes.success && activeRes.data?.status === "ACTIVE"
 
         if (!sid) {
           const createRes = await api.createGameSession(lessonId)
@@ -113,7 +116,17 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
 
     ws.onopen = () => {
       setConnected(true)
-      setPhase("lobby")
+      if (!resumingRef.current) {
+        setPhase("lobby")
+      } else {
+        // Safety net: if the resume snapshot never arrives, fall back to the lobby rather than spin forever.
+        setTimeout(() => {
+          if (resumingRef.current) {
+            resumingRef.current = false
+            setPhase((p) => (p === "loading" ? "lobby" : p))
+          }
+        }, 5000)
+      }
     }
     ws.onclose = () => setConnected(false)
     ws.onerror = () => setConnected(false)
@@ -123,6 +136,18 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
         const msg = JSON.parse(event.data)
         if (msg.type === "lobby:update") {
           setParticipants(msg.participants ?? [])
+        } else if (msg.type === "host:resume") {
+          const rows: Array<LobbyParticipant & { score: number; streak: number; completed: boolean }> = msg.participants ?? []
+          resumingRef.current = false
+          setTimerSeconds(msg.timerSeconds)
+          setTotalQuestions(msg.totalQuestions)
+          setParticipants(rows.map(({ userId, name, avatar, joinedAt }) => ({ userId, name, avatar, joinedAt })))
+          setProgress(
+            Object.fromEntries(
+              rows.map((r) => [r.userId, { userId: r.userId, name: r.name, score: r.score, streak: r.streak, completed: r.completed }])
+            )
+          )
+          setPhase("live")
         } else if (msg.type === "game:started") {
           setTimerSeconds(msg.timerSeconds)
           setTotalQuestions(msg.totalQuestions)
