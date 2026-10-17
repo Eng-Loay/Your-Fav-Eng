@@ -11,6 +11,7 @@ import { useApi, api } from "@/hooks/use-api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { SubmissionsView } from "@/components/assignments/submissions-view"
 
 interface Submission {
   id: string
@@ -96,7 +97,9 @@ export default function TeacherCourseAssignmentGradingPage() {
         </p>
       </div>
 
-      {submissions.length === 0 ? (
+      {assignment.gradingType === "AUTO" ? (
+        <SubmissionsView assignment={assignment} />
+      ) : submissions.length === 0 ? (
         <div className="bg-white rounded-2xl border border-[#E2E8F0]/60 shadow-sm p-12 text-center">
           <FileText className="w-12 h-12 text-[#94A3B8] mx-auto mb-4" />
           <p className="text-[#64748B]">{locale === "ar" ? "لسه محدش سلّم الواجب ده" : "No one has submitted this assignment yet"}</p>

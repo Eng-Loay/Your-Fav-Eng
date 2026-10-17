@@ -1136,6 +1136,10 @@ class ApiClient {
     return this.request(`/admin/assignments?${q.toString()}`);
   }
 
+  async getAdminCourseAssignmentSubmissions(id: string) {
+    return this.request(`/admin/assignments/course/${id}`);
+  }
+
   async getAdminUsersStats() {
     return this.request('/admin/users/stats');
   }

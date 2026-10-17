@@ -44,6 +44,7 @@ router.get('/dashboard/enrollments-by-category', ...adminAuth, adminController.g
 
 // ==================== ASSIGNMENTS ====================
 router.get('/assignments', ...adminAuth, adminController.listAssignments);
+router.get('/assignments/course/:id', ...adminAuth, adminController.getCourseAssignmentSubmissions);
 
 // ==================== USERS ====================
 router.get('/users/stats', ...adminAuth, adminController.getUsersStats);

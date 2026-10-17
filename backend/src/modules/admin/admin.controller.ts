@@ -85,6 +85,16 @@ export const adminController = {
     }
   },
 
+  async getCourseAssignmentSubmissions(req: AuthRequest, res: Response) {
+    try {
+      const data = await adminService.getCourseAssignmentSubmissions(req.params.id as string);
+      if (!data) return ApiResponse.notFound(res, 'Assignment not found');
+      return ApiResponse.success(res, data);
+    } catch (err) {
+      return ApiResponse.error(res, 'Failed to load assignment submissions', 500);
+    }
+  },
+
   // ==================== USERS ====================
   async getUsersStats(req: AuthRequest, res: Response) {
     try {

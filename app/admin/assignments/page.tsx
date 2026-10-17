@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { m } from "framer-motion"
-import { FileText, BookOpen, GraduationCap, Calendar, Award } from "lucide-react"
+import { FileText, BookOpen, GraduationCap, Calendar, Award, ChevronLeft, ChevronRight } from "lucide-react"
 import { useI18n } from "@/lib/i18n"
 import { useApi, api } from "@/hooks/use-api"
 
 export default function AdminAssignmentsPage() {
-  const { locale } = useI18n()
+  const { locale, dir } = useI18n()
+  const ArrowIcon = dir === "rtl" ? ChevronLeft : ChevronRight
   const [typeFilter, setTypeFilter] = useState("all")
   const { data: res, loading } = useApi(() => api.getAdminAssignments({ type: typeFilter !== "all" ? typeFilter : undefined }))
 
@@ -77,6 +79,15 @@ export default function AdminAssignmentsPage() {
                   <span>{a.submissionsCount} {locale === "ar" ? "تسليم" : "submissions"}</span>
                 </div>
                 <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#059669]/10 text-[#059669]">{a.status}</span>
+                {a.type === "instructor" && (
+                  <Link
+                    href={`/admin/assignments/${a.id}`}
+                    className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
+                  >
+                    {locale === "ar" ? "عرض التسليمات" : "View submissions"}
+                    <ArrowIcon className="h-3.5 w-3.5" />
+                  </Link>
+                )}
               </div>
             </m.div>
           ))}

@@ -3934,4 +3934,35 @@ export const adminService = {
     const data = combined.slice(skip, skip + limit);
     return { data, total, page, limit };
   },
+
+  /** One course assignment with every submission (student + answers) and the enrolled students who haven't submitted yet. */
+  async getCourseAssignmentSubmissions(id: string) {
+    const assignment = await prisma.courseAssignment.findUnique({
+      where: { id },
+      include: {
+        course: { select: { id: true, title: true, titleAr: true } },
+        instructor: { select: { id: true, name: true } },
+        submissions: { orderBy: { submittedAt: 'desc' } },
+      },
+    });
+    if (!assignment) return null;
+
+    const enrollments = await prisma.enrollment.findMany({
+      where: { courseId: assignment.courseId, status: 'ACTIVE' },
+      select: { userId: true },
+    });
+    const userIds = Array.from(new Set([...assignment.submissions.map((s) => s.studentId), ...enrollments.map((e) => e.userId)]));
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds }, role: 'STUDENT' },
+      select: { id: true, name: true, email: true, avatar: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const submittedIds = new Set(assignment.submissions.map((s) => s.studentId));
+
+    return {
+      ...assignment,
+      submissions: assignment.submissions.map((s) => ({ ...s, student: userMap.get(s.studentId) ?? null })),
+      notSubmitted: users.filter((u) => !submittedIds.has(u.id) && enrollments.some((e) => e.userId === u.id)),
+    };
+  },
 };
