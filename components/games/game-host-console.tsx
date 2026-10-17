@@ -21,6 +21,7 @@ interface ProgressRow {
   name: string
   score: number
   streak: number
+  answeredCount: number
   completed: boolean
 }
 
@@ -137,14 +138,14 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
         if (msg.type === "lobby:update") {
           setParticipants(msg.participants ?? [])
         } else if (msg.type === "host:resume") {
-          const rows: Array<LobbyParticipant & { score: number; streak: number; completed: boolean }> = msg.participants ?? []
+          const rows: Array<LobbyParticipant & { score: number; streak: number; answeredCount: number; completed: boolean }> = msg.participants ?? []
           resumingRef.current = false
           setTimerSeconds(msg.timerSeconds)
           setTotalQuestions(msg.totalQuestions)
           setParticipants(rows.map(({ userId, name, avatar, joinedAt }) => ({ userId, name, avatar, joinedAt })))
           setProgress(
             Object.fromEntries(
-              rows.map((r) => [r.userId, { userId: r.userId, name: r.name, score: r.score, streak: r.streak, completed: r.completed }])
+              rows.map((r) => [r.userId, { userId: r.userId, name: r.name, score: r.score, streak: r.streak, answeredCount: r.answeredCount ?? 0, completed: r.completed }])
             )
           )
           setPhase("live")
@@ -153,7 +154,7 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
           setTotalQuestions(msg.totalQuestions)
           setProgress(
             Object.fromEntries(
-              participants.map((p) => [p.userId, { userId: p.userId, name: p.name, score: 0, streak: 0, completed: false }])
+              participants.map((p) => [p.userId, { userId: p.userId, name: p.name, score: 0, streak: 0, answeredCount: 0, completed: false }])
             )
           )
           setPhase("live")
@@ -167,6 +168,7 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
                 name: prev[msg.userId]?.name ?? existing?.name ?? "طالب",
                 score: msg.score,
                 streak: msg.streak,
+                answeredCount: msg.answeredCount ?? prev[msg.userId]?.answeredCount ?? 0,
                 completed: msg.completed,
               },
             }
@@ -305,7 +307,24 @@ export default function GameHostConsole({ lessonId }: { lessonId: string }) {
                         row?.completed ? "bg-emerald-50" : "bg-slate-50"
                       }`}
                     >
-                      <span className="text-sm font-medium text-slate-800">{p.name}</span>
+                      <div className="min-w-0 flex-1 pe-3">
+                        <span className="text-sm font-medium text-slate-800">{p.name}</span>
+                        {totalQuestions > 0 && (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                              <div
+                                className="h-full rounded-full bg-purple-500 transition-all duration-300"
+                                style={{ width: `${Math.min(100, ((row?.answeredCount ?? 0) / totalQuestions) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="shrink-0 text-[11px] font-medium text-slate-500">
+                              {row?.completed
+                                ? `${totalQuestions} من ${totalQuestions}`
+                                : `سؤال ${Math.min((row?.answeredCount ?? 0) + 1, totalQuestions)} من ${totalQuestions}`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3">
                         {!!row?.streak && (
                           <span className="flex items-center gap-1 text-xs font-bold text-amber-600">

@@ -228,6 +228,7 @@ export function initGameWebSocketServer(server: Server) {
             joinedAt: p.joinedAt,
             score: p.score,
             streak: p.streak,
+            answeredCount: p.currentQuestionIndex,
             completed: p.completed,
           }));
         send(socket, 'host:resume', { timerSeconds: session.timerSeconds, totalQuestions, participants });
@@ -325,6 +326,7 @@ async function handleMessage(socket: GameSocket, msg: { type: string; [key: stri
       userId: socket.userId,
       score: result.newScore,
       streak: result.newStreak,
+      answeredCount: result.answeredCount,
       completed: result.completed,
     });
     if (result.sessionEnded) {

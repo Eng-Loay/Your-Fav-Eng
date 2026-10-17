@@ -409,6 +409,7 @@ export const gamesService = {
       pointsEarned,
       newScore: updatedParticipant.score,
       newStreak: updatedParticipant.streak,
+      answeredCount: updatedParticipant.currentQuestionIndex,
       nextQuestion: nextQuestion ? sanitizeQuestion(nextQuestion) : null,
       completed: !nextQuestion,
       sessionEnded,
