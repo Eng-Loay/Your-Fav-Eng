@@ -158,7 +158,9 @@ export const lessonsService = {
       where: { id: enrollment.id },
       data: {
         progress: progressPercent,
-        ...(progressPercent >= 100 ? { completedAt: now, status: 'COMPLETED' as const } : {}),
+        // Finishing every lesson must not flip the status: access checks (curriculum, games, homework)
+        // require ACTIVE, and new lessons added later would otherwise lock the student out of them.
+        ...(progressPercent >= 100 ? { completedAt: now } : {}),
       },
     });
 
