@@ -3060,7 +3060,7 @@ export const adminService = {
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) return null;
 
-    return prisma.chapter.findMany({
+    const chapters = await prisma.chapter.findMany({
       where: { courseId, parentId: null },
       orderBy: { order: 'asc' },
       include: {
@@ -3079,6 +3079,50 @@ export const adminService = {
         },
       },
     });
+    await adminService._hydrateGameLessonContent(chapters.flatMap((ch) => [...ch.lessons, ...ch.children.flatMap((c) => c.lessons)]));
+    return chapters;
+  },
+
+  /**
+   * @internal Overwrite each GAME lesson's `content` with a JSON blob rebuilt from the live
+   * GameQuestion rows (real database ids), mutating the given lesson objects in place.
+   *
+   * The content editor only ever round-trips `Lesson.content` — a JSON blob the browser itself
+   * assembled, carrying the editor's own client-generated question ids (never real UUIDs). If the
+   * editor is hydrated from that stale blob, every question it sends back on the next save fails
+   * the UUID check in `_syncLessonGameToTable`, so every "Save All" wipes and recreates the whole
+   * question set — cascade-deleting GameAnswer history for every question, not just an edited one.
+   * Calling this before a GAME lesson reaches the client ensures the editor always carries the
+   * real ids, so re-saving unedited questions updates them in place instead of recreating them.
+   */
+  async _hydrateGameLessonContent(lessons: Array<{ id: string; type: string; content: string | null }>) {
+    const gameLessonIds = lessons.filter((l) => l.type === 'GAME').map((l) => l.id);
+    if (gameLessonIds.length === 0) return;
+
+    const games = await prisma.lessonGame.findMany({
+      where: { lessonId: { in: gameLessonIds } },
+      include: { questions: { orderBy: { order: 'asc' } } },
+    });
+    const byLessonId = new Map(games.map((g) => [g.lessonId, g]));
+
+    for (const lesson of lessons) {
+      if (lesson.type !== 'GAME') continue;
+      const game = byLessonId.get(lesson.id);
+      if (!game) continue;
+      const questions = game.questions.map((q) => {
+        let rest: Record<string, unknown> = {};
+        try {
+          rest = JSON.parse(q.options || '{}');
+        } catch {
+          rest = {};
+        }
+        return { id: q.id, type: q.type, question: q.question, questionAr: q.questionAr ?? undefined, points: q.points, ...rest };
+      });
+      (lesson as { content: string | null }).content = JSON.stringify({
+        settings: { defaultTimerSeconds: game.defaultTimerSeconds },
+        questions,
+      });
+    }
   },
 
   /** @internal Sync lesson attachments */
@@ -3498,6 +3542,10 @@ export const adminService = {
         });
         if (chapter) result.push(chapter as any);
       }
+
+      await adminService._hydrateGameLessonContent(
+        result.flatMap((ch) => [...ch.lessons, ...ch.children.flatMap((c: any) => c.lessons)])
+      );
 
       const toDelete = existingChapters.filter((c) => !payloadChapterIds.has(c.id));
       // Delete sub-sections before top-level chapters so a cascade delete of a
