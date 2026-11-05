@@ -237,17 +237,26 @@ export function initGameWebSocketServer(server: Server) {
       } else if (session.status === 'LOBBY') {
         await broadcastLobbyUpdate(sessionId);
       } else if (session.status === 'ACTIVE') {
-        // Resume mid-game: send the player their current question snapshot.
+        // Resume mid-game: send the player their current question snapshot, with the time
+        // actually left on the clock — not a fresh full timer — so a refresh can't be used to
+        // buy extra time. The server already enforces this for scoring in submitAnswer; this
+        // just makes the display agree with it.
         const detail = await gamesService.getSessionDetail(sessionId);
         const participant = detail?.participants.find((p) => p.userId === userId);
         const questions = detail?.game.lesson ? await prisma.gameQuestion.findMany({ where: { gameId: detail.game.id }, orderBy: { order: 'asc' } }) : [];
         const current = participant && !participant.completed ? questions[participant.currentQuestionIndex] : null;
+        const fullTimer = detail?.timerSeconds ?? 30;
+        let secondsRemaining = fullTimer;
+        if (current && participant?.currentQuestionStartedAt) {
+          const elapsedMs = Math.max(0, Date.now() - participant.currentQuestionStartedAt.getTime());
+          secondsRemaining = Math.max(0, fullTimer - Math.floor(elapsedMs / 1000));
+        }
         send(socket, 'game:resume', {
           score: participant?.score ?? 0,
           streak: participant?.streak ?? 0,
           completed: participant?.completed ?? true,
           question: current ? gamesService.sanitizeQuestion(current) : null,
-          timerSeconds: detail?.timerSeconds ?? 30,
+          timerSeconds: secondsRemaining,
         });
       }
 
